@@ -10,6 +10,12 @@ spec:
     application: docker.io/confluentinc/cp-schema-registry:8.2.1
     init: docker.io/confluentinc/confluent-init-container:3.2.0
 
+  # License — required if you have a Confluent Platform subscription.
+  # Install via scripts/07-install-license.sh. If you don't have a license,
+  # comment out the block below (clusters run in trial mode — some features have 30-day limits).
+  license:
+    secretRef: confluent-license
+
   # Modest request so SR co-locates on broker nodes, which have headroom left
   # over the broker's 2500m request. Controller nodes (m5.large) are full once
   # a KRaft controller lands, so SR is pinned to the broker node group below.

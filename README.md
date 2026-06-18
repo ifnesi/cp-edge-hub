@@ -60,13 +60,14 @@ Schema Linking replicating data from Edge to Hub.
 ### Tools (Mac)
 
 ```bash
-brew install cfssl            # certificate generation
-brew install helm             # CfK operator
-brew install awscli           # AWS CLI (needed to auth kubectl to EKS)
-brew install --cask temurin   # JDK for keytool (truststore)
-brew install terraform        # infrastructure provisioning
-brew install jq               # JSON parsing in helper scripts
-brew install kubernetes-cli   # kubectl
+brew install cfssl                     # certificate generation
+brew install helm                      # CfK operator
+brew install awscli                    # AWS CLI (needed to auth kubectl to EKS)
+brew install --cask temurin            # JDK for keytool (truststore)
+brew tap hashicorp/tap
+brew install hashicorp/tap/terraform   # infrastructure provisioning
+brew install jq                        # JSON parsing in helper scripts
+brew install kubernetes-cli            # kubectl
 ```
 
 Verify:
@@ -110,6 +111,67 @@ Set the profile for the rest of the session:
 export AWS_PROFILE=cp-poc
 ```
 
+### IAM Permissions
+
+Your AWS user needs the following permissions to provision all infrastructure. Ask your AWS admin to attach these **managed policies**:
+
+- **`AmazonVPCFullAccess`** — VPC, subnets, security groups, NAT gateway, route tables
+- **`AmazonEC2FullAccess`** — EC2 instances, node groups, EBS volumes, launch templates
+- **`IAMFullAccess`** — IAM role and policy creation
+- **`CloudWatchLogsFullAccess`** — EKS cluster logging
+
+Plus this **custom inline policy** for EKS-specific actions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:CreateCluster",
+        "eks:DescribeCluster",
+        "eks:ListClusters",
+        "eks:DeleteCluster",
+        "eks:UpdateCluster",
+        "eks:TagResource",
+        "eks:CreateNodegroup",
+        "eks:DescribeNodegroup",
+        "eks:DeleteNodegroup",
+        "eks:ListNodegroups",
+        "eks:UpdateNodegroupVersion",
+        "eks:DescribeUpdate",
+        "eks:CreateAddon",
+        "eks:DescribeAddon",
+        "eks:DeleteAddon",
+        "eks:ListAddons",
+        "ec2:*",
+        "iam:CreateRole",
+        "iam:PutRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:CreateInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+If your organization restricts `IAMFullAccess`, ask for these specific IAM permissions instead:
+- `iam:CreateRole`
+- `iam:PutRolePolicy`
+- `iam:AttachRolePolicy`
+- `iam:GetRole`
+- `iam:PassRole`
+- `iam:CreateInstanceProfile`
+- `iam:AddRoleToInstanceProfile`
+
 ### Helm repos
 
 ```bash
@@ -129,8 +191,8 @@ helm repo update
 cd terraform
 
 terraform init
-terraform plan   # review what will be created
-terraform apply  # takes ~15–20 minutes
+terraform plan                 # review what will be created
+terraform apply -auto-approve  # takes ~15–20 minutes
 ```
 
 ### What Terraform creates
@@ -142,8 +204,8 @@ terraform apply  # takes ~15–20 minutes
 | Private subnet | `10.0.1.0/24` (`eu-west-2a`) - all EKS nodes live here |
 | Private subnet B | `10.0.2.0/24` (`eu-west-2b`) - **empty**, only present because EKS requires cluster subnets to span ≥2 AZs. No nodes/EBS land here, so the workload stays single-AZ |
 | NAT Gateway | Allows nodes to pull images |
-| EKS cluster `cp-edge` | Kubernetes 1.31, public+private endpoint |
-| EKS cluster `cp-hub` | Kubernetes 1.31, public+private endpoint |
+| EKS cluster `cp-edge` | Kubernetes 1.36, public+private endpoint |
+| EKS cluster `cp-hub` | Kubernetes 1.36, public+private endpoint |
 | Node group `broker` (×2) | 3 × `m5.xlarge` (4 vCPU / 16 GB) per cluster |
 | Node group `controller` (×2) | 3 × `m5.large` (2 vCPU / 8 GB) per cluster |
 | EBS CSI add-on (×2) | Enables dynamic EBS volume provisioning |
@@ -344,7 +406,74 @@ This creates the following secrets in `cp-hub`:
 
 ---
 
-## Step 4 - Deploy Edge Cluster
+## Step 3.5 - Handle Confluent Platform License
+
+The CfK resources are configured to use a license by default. Follow one of these paths:
+
+### Path A: You have a Confluent Platform license
+
+**1. Place your JWT license token in the repo root:**
+
+```bash
+cat > license.txt <<'EOF'
+<your-jwt-license-token-here>
+EOF
+```
+
+**2. Run the license installation script:**
+
+```bash
+EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/07-install-license.sh
+```
+
+This script:
+- Validates the JWT format
+- Creates `confluent-license` secrets in both clusters (`cp-edge` and `cp-hub`)
+- Outputs instructions for reapplying the CRDs
+
+**3. Reapply the resources to activate the license:**
+
+```bash
+# Edge
+kubectl --context="${EDGE_CTX}" apply -f edge/01-kraftcontroller.yaml
+kubectl --context="${EDGE_CTX}" apply -f edge/02-kafka.yaml
+kubectl --context="${EDGE_CTX}" apply -f edge/03-schemaregistry.yaml
+
+# Hub
+kubectl --context="${HUB_CTX}" apply -f hub/01-kraftcontroller.yaml
+kubectl --context="${HUB_CTX}" apply -f hub/02-kafka.yaml
+kubectl --context="${HUB_CTX}" apply -f hub/03-schemaregistry.yaml
+```
+
+The CfK operator will automatically restart pods to load the license.
+
+### Path B: You don't have a license (trial mode)
+
+**Comment out the license blocks** in these files before deploying:
+- `edge/01-kraftcontroller.yaml`
+- `edge/02-kafka.yaml`
+- `edge/03-schemaregistry.yaml`
+- `hub/01-kraftcontroller.yaml`
+- `hub/02-kafka.yaml`
+- `hub/03-schemaregistry.yaml`
+
+In each file, comment out:
+```yaml
+# license:
+#   secretRef: confluent-license
+```
+
+Clusters will run in **trial mode** (some features have 30-day limits).
+
+Alternatively, run the script without `license.txt` and it will provide clear instructions:
+
+```bash
+EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/07-install-license.sh
+```
+
+---
+
+## Step 5 - Deploy Edge Cluster
 
 Apply the CRDs in order. Wait for each component before proceeding.
 
@@ -399,7 +528,7 @@ schemaregistry-2              1/1     Running   0
 
 ---
 
-## Step 5 - Deploy Hub Cluster
+## Step 6 - Deploy Hub Cluster
 
 Same sequence as Edge:
 
@@ -424,7 +553,7 @@ The Hub runs a single-node Kafka Connect cluster. The
 **v2.2.6** is baked into the Connect image at build time (`spec.build.onDemand`
 pulls it from Confluent Hub - nodes reach it via the NAT gateway). Only the
 plugin JAR is installed here; the **connector instance is created later,
-manually, in Control Center** (Step 10).
+manually, in Control Center** (Step 11).
 
 ```bash
 kubectl --context="${HUB_CTX}" apply -f hub/04-connect.yaml
@@ -444,7 +573,7 @@ kubectl --context="${HUB_CTX}" exec -n cp-hub connect-0 -- \
 
 ---
 
-## Step 6 - Resolve External LB Addresses
+## Step 7 - Resolve External LB Addresses
 
 CfK creates one NLB per broker on AWS. Wait a few minutes for AWS to provision
 them, then run:
@@ -469,9 +598,9 @@ stable across re-provisions so you only need to update `/etc/hosts` once.
 
 ---
 
-## Step 6.5 - Configure Cross-Cluster DNS (required for linking)
+## Step 7.5 - Configure Cross-Cluster DNS (required for linking)
 
-The `/etc/hosts` entries from Step 6 only work for CLI clients **on your Mac**.
+The `/etc/hosts` entries from Step 7 only work for CLI clients **on your Mac**.
 Pods running inside EKS have no such entries, so anything that connects
 cross-cluster *from inside a pod* - Cluster Linking (Hub→Edge) and Schema Linking
 (Edge→Hub) - cannot resolve the `*.kafka.demo` names and will silently fail to
@@ -496,7 +625,7 @@ kubectl --context="${HUB_CTX}" -n cp-hub exec kafka-0 -- nslookup b0.edge.kafka.
 
 ---
 
-## Step 7 - Configure Edge ACLs
+## Step 8 - Configure Edge ACLs
 
 The `cluster-link` user must have Read access to all topics and the Describe
 Cluster privilege on Edge before the ClusterLink resource is applied.
@@ -512,10 +641,10 @@ This grants:
 
 ---
 
-## Step 8 - Update ClusterLink Bootstrap Endpoints
+## Step 9 - Update ClusterLink Bootstrap Endpoints
 
 Edit `linking/01-clusterlink.yaml` and replace the `bootstrapEndpoint` value
-with the actual Edge NLB FQDNs from Step 6:
+with the actual Edge NLB FQDNs from Step 7:
 
 ```yaml
 sourceKafkaCluster:
@@ -555,7 +684,7 @@ kafka-topics --list \
 
 ---
 
-## Step 9 - Configure Schema Linking
+## Step 10 - Configure Schema Linking
 
 Schema Linking is done via Schema Registry REST API (no CfK CRD). The script
 configures an Exporter on Edge SR that continuously pushes schemas to Hub SR.
@@ -792,10 +921,10 @@ the Hub's Kafka Connect cluster (where you create the Splunk Sink connector).
 The **Edge** cluster is observed separately via its own kube-prometheus-stack +
 Grafana (Steps 11–12).
 
-### Step 10 - Deploy Control Center (Hub)
+### Step 11 - Deploy Control Center (Hub)
 
-C3 manages the Connect cluster from Step 5, so complete **Step 5 (Connect)**
-first. (It no longer reaches Edge, so the Edge NLBs / Step 6.5 are not required
+C3 manages the Connect cluster from Step 6, so complete **Step 6 (Deploy Hub Cluster)**
+first. (It no longer reaches Edge, so the Edge NLBs / Step 7.5 are not required
 for C3 itself.)
 
 ```bash
@@ -827,10 +956,10 @@ kubectl --context="${HUB_CTX}" port-forward -n cp-hub svc/controlcenter 9021:902
 **Add the Splunk Sink connector** from the UI: open the **`connect`** cluster →
 **Add connector → Splunk Sink Connector**, then fill in the Splunk HEC settings
 (`splunk.hec.uri`, `splunk.hec.token`, source topics, and a license key for runs
-beyond the 30-day trial). The plugin is already installed (Step 5); C3 only
+beyond the 30-day trial). The plugin is already installed (Step 6); C3 only
 creates the running connector instance.
 
-### Step 11 - Deploy Prometheus + Grafana
+### Step 12 - Deploy Prometheus + Grafana
 
 ```bash
 # Add the Prometheus community Helm repo
@@ -864,7 +993,7 @@ kubectl --context="${EDGE_CTX}" get svc \
 
 Open Grafana at `http://<nlb-address>` and log in with `admin` / `prom-operator`.
 
-### Step 12 - Import Confluent Grafana Dashboards
+### Step 13 - Import Confluent Grafana Dashboards
 
 See `monitoring/03-grafana-dashboards.md` for full instructions. The short
 version:

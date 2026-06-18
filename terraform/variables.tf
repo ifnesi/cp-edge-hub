@@ -1,3 +1,9 @@
+variable "resource_prefix" {
+  description = "Prefix for all AWS resources (e.g., CpEdgeHub)"
+  type        = string
+  default     = "CpEdgeHub"
+}
+
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -45,7 +51,7 @@ variable "private_subnet_b_cidr" {
 variable "eks_version" {
   description = "EKS Kubernetes version"
   type        = string
-  default     = "1.31"
+  default     = "1.36"
 }
 
 # Instance type for Kafka broker nodes (4 vCPU / 16 GB).
@@ -66,7 +72,7 @@ variable "tags" {
   description = "Tags applied to all resources"
   type        = map(string)
   default = {
-    Project     = "cp-edge-hub-poc"
+    Project     = "cp-edge-hub"
     ManagedBy   = "terraform"
     Environment = "poc"
   }

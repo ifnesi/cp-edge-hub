@@ -5,7 +5,7 @@
 # --- EKS Cluster Role ---
 
 resource "aws_iam_role" "eks_cluster" {
-  name = "cp-poc-eks-cluster-role"
+  name = "${var.resource_prefix}-eks-cluster-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -25,7 +25,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 # --- EKS Node Role ---
 
 resource "aws_iam_role" "eks_node" {
-  name = "cp-poc-eks-node-role"
+  name = "${var.resource_prefix}-eks-node-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -60,7 +60,7 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
 
 # NLB / LoadBalancer creation (needed for external broker listeners)
 resource "aws_iam_role_policy" "nlb_inline" {
-  name = "cp-poc-nlb-policy"
+  name = "${var.resource_prefix}-nlb-policy"
   role = aws_iam_role.eks_node.id
 
   policy = jsonencode({

@@ -4,7 +4,7 @@
 # =============================================================================
 
 resource "aws_security_group" "hub_control_plane" {
-  name        = "cp-hub-control-plane-sg"
+  name        = "${var.resource_prefix}-hub-control-plane-sg"
   description = "Hub EKS control plane security group"
   vpc_id      = aws_vpc.main.id
 
@@ -15,7 +15,7 @@ resource "aws_security_group" "hub_control_plane" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "cp-hub-control-plane-sg" }
+  tags = { Name = "${var.resource_prefix}-hub-control-plane-sg" }
 }
 
 resource "aws_security_group_rule" "hub_nodes_to_cp" {
@@ -29,7 +29,7 @@ resource "aws_security_group_rule" "hub_nodes_to_cp" {
 }
 
 resource "aws_security_group" "hub_nodes" {
-  name        = "cp-hub-nodes-sg"
+  name        = "${var.resource_prefix}-hub-nodes-sg"
   description = "Hub EKS node security group"
   vpc_id      = aws_vpc.main.id
 
@@ -88,11 +88,11 @@ resource "aws_security_group" "hub_nodes" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "cp-hub-nodes-sg" }
+  tags = { Name = "${var.resource_prefix}-hub-nodes-sg" }
 }
 
 resource "aws_eks_cluster" "hub" {
-  name     = "cp-hub"
+  name     = "${var.resource_prefix}-hub"
   version  = var.eks_version
   role_arn = aws_iam_role.eks_cluster.arn
 
@@ -107,13 +107,12 @@ resource "aws_eks_cluster" "hub" {
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 
-  tags = { Name = "cp-hub" }
+  tags = { Name = "${var.resource_prefix}-hub" }
 }
 
 resource "aws_eks_addon" "hub_ebs_csi" {
   cluster_name                = aws_eks_cluster.hub.name
   addon_name                  = "aws-ebs-csi-driver"
-  addon_version               = "v1.37.0-eksbuild.1"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
@@ -124,7 +123,7 @@ resource "aws_eks_addon" "hub_ebs_csi" {
 }
 
 resource "aws_launch_template" "hub_broker" {
-  name_prefix   = "cp-hub-broker-"
+  name_prefix   = "${var.resource_prefix}-hub-broker-"
   instance_type = var.broker_instance_type
 
   block_device_mappings {
@@ -145,12 +144,12 @@ resource "aws_launch_template" "hub_broker" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "cp-hub-broker", Role = "broker" })
+    tags          = merge(var.tags, { Name = "${var.resource_prefix}-hub-broker", Role = "broker" })
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = merge(var.tags, { Name = "cp-hub-broker-root" })
+    tags          = merge(var.tags, { Name = "${var.resource_prefix}-hub-broker-root" })
   }
 
   lifecycle {
@@ -159,7 +158,7 @@ resource "aws_launch_template" "hub_broker" {
 }
 
 resource "aws_launch_template" "hub_controller" {
-  name_prefix   = "cp-hub-controller-"
+  name_prefix   = "${var.resource_prefix}-hub-controller-"
   instance_type = var.controller_instance_type
 
   block_device_mappings {
@@ -180,7 +179,7 @@ resource "aws_launch_template" "hub_controller" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "cp-hub-controller", Role = "controller" })
+    tags          = merge(var.tags, { Name = "${var.resource_prefix}-hub-controller", Role = "controller" })
   }
 
   lifecycle {
@@ -216,7 +215,7 @@ resource "aws_eks_node_group" "hub_broker" {
     aws_iam_role_policy_attachment.ebs_csi,
   ]
 
-  tags = { Name = "cp-hub-broker-ng" }
+  tags = { Name = "${var.resource_prefix}-hub-broker-ng" }
 }
 
 resource "aws_eks_node_group" "hub_controller" {
@@ -247,5 +246,5 @@ resource "aws_eks_node_group" "hub_controller" {
     aws_iam_role_policy_attachment.ebs_csi,
   ]
 
-  tags = { Name = "cp-hub-controller-ng" }
+  tags = { Name = "${var.resource_prefix}-hub-controller-ng" }
 }

@@ -9,14 +9,14 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
   enable_dns_hostnames = true
 
-  tags = { Name = "cp-poc-vpc" }
+  tags = { Name = "${var.resource_prefix}-vpc" }
 }
 
 # --- Internet Gateway (needed for NLBs and node egress) ---
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
-  tags   = { Name = "cp-poc-igw" }
+  tags   = { Name = "${var.resource_prefix}-igw" }
 }
 
 # --- Public subnet (NLBs) ---
@@ -28,7 +28,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                            = "cp-poc-public-${var.availability_zone}"
+    Name                            = "${var.resource_prefix}-public-${var.availability_zone}"
     "kubernetes.io/role/elb"        = "1"
     "kubernetes.io/cluster/cp-edge" = "shared"
     "kubernetes.io/cluster/cp-hub"  = "shared"
@@ -43,7 +43,7 @@ resource "aws_subnet" "private" {
   availability_zone = var.availability_zone
 
   tags = {
-    Name                              = "cp-poc-private-${var.availability_zone}"
+    Name                              = "${var.resource_prefix}-private-${var.availability_zone}"
     "kubernetes.io/role/internal-elb" = "1"
     "kubernetes.io/cluster/cp-edge"   = "shared"
     "kubernetes.io/cluster/cp-hub"    = "shared"
@@ -60,7 +60,7 @@ resource "aws_subnet" "private_b" {
   availability_zone = var.availability_zone_b
 
   tags = {
-    Name                              = "cp-poc-private-${var.availability_zone_b}"
+    Name                              = "${var.resource_prefix}-private-${var.availability_zone_b}"
     "kubernetes.io/role/internal-elb" = "1"
     "kubernetes.io/cluster/cp-edge"   = "shared"
     "kubernetes.io/cluster/cp-hub"    = "shared"
@@ -71,13 +71,13 @@ resource "aws_subnet" "private_b" {
 
 resource "aws_eip" "nat" {
   domain = "vpc"
-  tags   = { Name = "cp-poc-nat-eip" }
+  tags   = { Name = "${var.resource_prefix}-nat-eip" }
 }
 
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public.id
-  tags          = { Name = "cp-poc-nat" }
+  tags          = { Name = "${var.resource_prefix}-nat" }
   depends_on    = [aws_internet_gateway.igw]
 }
 
@@ -85,7 +85,7 @@ resource "aws_nat_gateway" "nat" {
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-  tags   = { Name = "cp-poc-public-rt" }
+  tags   = { Name = "${var.resource_prefix}-public-rt" }
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -100,7 +100,7 @@ resource "aws_route_table_association" "public" {
 
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
-  tags   = { Name = "cp-poc-private-rt" }
+  tags   = { Name = "${var.resource_prefix}-private-rt" }
 
   route {
     cidr_block     = "0.0.0.0/0"

@@ -16,6 +16,7 @@ terraform/terraform.tfstate.d/
 terraform/*.tfvars
 terraform/override.tf
 terraform/override.tf.json
+terraform/.terraform.tfstate.lock.info
 
 # Secrets / credentials (plain-text passwords)
 edge/credentials/
@@ -28,3 +29,6 @@ __pycache__/
 # Editor
 .vscode/
 .idea/
+
+# Confluent Platform license key
+license.txt

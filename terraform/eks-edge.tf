@@ -5,7 +5,7 @@
 # --- Security group for the Edge control plane ---
 
 resource "aws_security_group" "edge_control_plane" {
-  name        = "cp-edge-control-plane-sg"
+  name        = "${var.resource_prefix}-edge-control-plane-sg"
   description = "Edge EKS control plane security group"
   vpc_id      = aws_vpc.main.id
 
@@ -16,7 +16,7 @@ resource "aws_security_group" "edge_control_plane" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "cp-edge-control-plane-sg" }
+  tags = { Name = "${var.resource_prefix}-edge-control-plane-sg" }
 }
 
 resource "aws_security_group_rule" "edge_nodes_to_cp" {
@@ -32,7 +32,7 @@ resource "aws_security_group_rule" "edge_nodes_to_cp" {
 # --- Security group for Edge nodes ---
 
 resource "aws_security_group" "edge_nodes" {
-  name        = "cp-edge-nodes-sg"
+  name        = "${var.resource_prefix}-edge-nodes-sg"
   description = "Edge EKS node security group"
   vpc_id      = aws_vpc.main.id
 
@@ -86,13 +86,13 @@ resource "aws_security_group" "edge_nodes" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "cp-edge-nodes-sg" }
+  tags = { Name = "${var.resource_prefix}-edge-nodes-sg" }
 }
 
 # --- EKS Cluster ---
 
 resource "aws_eks_cluster" "edge" {
-  name     = "cp-edge"
+  name     = "${var.resource_prefix}-edge"
   version  = var.eks_version
   role_arn = aws_iam_role.eks_cluster.arn
 
@@ -110,14 +110,13 @@ resource "aws_eks_cluster" "edge" {
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 
-  tags = { Name = "cp-edge" }
+  tags = { Name = "${var.resource_prefix}-edge" }
 }
 
 # EBS CSI driver add-on (required for gp3 dynamic provisioning)
 resource "aws_eks_addon" "edge_ebs_csi" {
   cluster_name                = aws_eks_cluster.edge.name
   addon_name                  = "aws-ebs-csi-driver"
-  addon_version               = "v1.37.0-eksbuild.1"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
@@ -131,7 +130,7 @@ resource "aws_eks_addon" "edge_ebs_csi" {
 #     for Kafka data are provisioned dynamically by the CSI driver) ---
 
 resource "aws_launch_template" "edge_broker" {
-  name_prefix   = "cp-edge-broker-"
+  name_prefix   = "${var.resource_prefix}-edge-broker-"
   instance_type = var.broker_instance_type
 
   # Root volume — OS only, 50 GB gp3
@@ -153,12 +152,12 @@ resource "aws_launch_template" "edge_broker" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "cp-edge-broker", Role = "broker" })
+    tags          = merge(var.tags, { Name = "${var.resource_prefix}-edge-broker", Role = "broker" })
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = merge(var.tags, { Name = "cp-edge-broker-root" })
+    tags          = merge(var.tags, { Name = "${var.resource_prefix}-edge-broker-root" })
   }
 
   lifecycle {
@@ -167,7 +166,7 @@ resource "aws_launch_template" "edge_broker" {
 }
 
 resource "aws_launch_template" "edge_controller" {
-  name_prefix   = "cp-edge-controller-"
+  name_prefix   = "${var.resource_prefix}-edge-controller-"
   instance_type = var.controller_instance_type
 
   block_device_mappings {
@@ -188,7 +187,7 @@ resource "aws_launch_template" "edge_controller" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "cp-edge-controller", Role = "controller" })
+    tags          = merge(var.tags, { Name = "${var.resource_prefix}-edge-controller", Role = "controller" })
   }
 
   lifecycle {
@@ -227,7 +226,7 @@ resource "aws_eks_node_group" "edge_broker" {
     aws_iam_role_policy_attachment.ebs_csi,
   ]
 
-  tags = { Name = "cp-edge-broker-ng" }
+  tags = { Name = "${var.resource_prefix}-edge-broker-ng" }
 }
 
 # Controller node group — 3 nodes, hosts the KRaft controller pods.
@@ -261,5 +260,5 @@ resource "aws_eks_node_group" "edge_controller" {
     aws_iam_role_policy_attachment.ebs_csi,
   ]
 
-  tags = { Name = "cp-edge-controller-ng" }
+  tags = { Name = "${var.resource_prefix}-edge-controller-ng" }
 }
