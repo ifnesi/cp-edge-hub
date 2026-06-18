@@ -187,12 +187,14 @@ helm repo update
 > clusters (`cp-edge` and `cp-hub`), node groups, IAM roles, EBS CSI add-on,
 > and the `gp3` StorageClass.
 
+Make sure to replace `your_email@example.com` with your actual email address before running the apply command.
+
 ```bash
 cd terraform
 
 terraform init
-terraform plan                 # review what will be created
-terraform apply -auto-approve  # takes ~15–20 minutes
+terraform plan  # review what will be created
+terraform apply -var="owner_email=your_email@example.com"  # ← replace with your email; takes ~15–20 minutes
 ```
 
 ### What Terraform creates

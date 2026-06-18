@@ -152,12 +152,12 @@ resource "aws_launch_template" "edge_broker" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "${var.resource_prefix}-edge-broker", Role = "broker" })
+    tags          = merge(local.tags, { Name = "${var.resource_prefix}-edge-broker", Role = "broker" })
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = merge(var.tags, { Name = "${var.resource_prefix}-edge-broker-root" })
+    tags          = merge(local.tags, { Name = "${var.resource_prefix}-edge-broker-root" })
   }
 
   lifecycle {
@@ -187,7 +187,7 @@ resource "aws_launch_template" "edge_controller" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "${var.resource_prefix}-edge-controller", Role = "controller" })
+    tags          = merge(local.tags, { Name = "${var.resource_prefix}-edge-controller", Role = "controller" })
   }
 
   lifecycle {

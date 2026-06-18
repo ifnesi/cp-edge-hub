@@ -144,12 +144,12 @@ resource "aws_launch_template" "hub_broker" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "${var.resource_prefix}-hub-broker", Role = "broker" })
+    tags          = merge(local.tags, { Name = "${var.resource_prefix}-hub-broker", Role = "broker" })
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = merge(var.tags, { Name = "${var.resource_prefix}-hub-broker-root" })
+    tags          = merge(local.tags, { Name = "${var.resource_prefix}-hub-broker-root" })
   }
 
   lifecycle {
@@ -179,7 +179,7 @@ resource "aws_launch_template" "hub_controller" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "${var.resource_prefix}-hub-controller", Role = "controller" })
+    tags          = merge(local.tags, { Name = "${var.resource_prefix}-hub-controller", Role = "controller" })
   }
 
   lifecycle {

@@ -68,6 +68,11 @@ variable "controller_instance_type" {
   default = "m5.large"
 }
 
+variable "owner_email" {
+  description = "Email address of the resource owner (used as an AWS tag)"
+  type        = string
+}
+
 variable "tags" {
   description = "Tags applied to all resources"
   type        = map(string)
@@ -76,4 +81,8 @@ variable "tags" {
     ManagedBy   = "terraform"
     Environment = "poc"
   }
+}
+
+locals {
+  tags = merge(var.tags, { Owner = var.owner_email })
 }
