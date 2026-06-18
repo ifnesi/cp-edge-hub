@@ -1,0 +1,28 @@
+{
+  "CN": "kafka-edge",
+  "hosts": [
+    "kafka",
+    "kafka-edge",
+    "edge.kafka.demo",
+    "*.edge.kafka.demo",
+    "kafka.cp-edge.svc.cluster.local",
+    "*.kafka.cp-edge.svc.cluster.local",
+    "kraftcontroller.cp-edge.svc.cluster.local",
+    "*.kraftcontroller.cp-edge.svc.cluster.local",
+    "schemaregistry.cp-edge.svc.cluster.local",
+    "*.schemaregistry.cp-edge.svc.cluster.local"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "US",
+      "L": "MountainView",
+      "O": "Confluent",
+      "OU": "Edge",
+      "ST": "California"
+    }
+  ]
+}

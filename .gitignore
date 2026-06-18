@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Generated TLS certificates and keys — never commit private keys
+certs/cacerts.pem
+certs/rootCAkey.pem
+certs/edge/
+certs/hub/
+
+# Terraform state and local overrides
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/terraform.tfstate.d/
+terraform/*.tfvars
+terraform/override.tf
+terraform/override.tf.json
+
+# Secrets / credentials (plain-text passwords)
+edge/credentials/
+hub/credentials/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/

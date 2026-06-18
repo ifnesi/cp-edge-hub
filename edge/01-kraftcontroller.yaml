@@ -1,0 +1,77 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: KRaftController
+metadata:
+  name: kraftcontroller
+  namespace: cp-edge
+spec:
+  # -------------------------------------------------------------------------
+  # Cluster identity — must be unique across all clusters in the environment.
+  # CfK feeds this to `kafka-storage format`, so it MUST be a URL-safe base64
+  # encoded 16-byte UUID (22 chars, no padding) — generate with
+  # `kafka-storage random-uuid`. An arbitrary string is rejected at format time.
+  # -------------------------------------------------------------------------
+  clusterID: kMu98poWTRKgSVmnJY6q0A
+
+  replicas: 3
+  oneReplicaPerNode: true
+
+  image:
+    application: docker.io/confluentinc/cp-server:8.2.1
+    init: docker.io/confluentinc/confluent-init-container:3.2.0
+
+  # Controller metadata log storage (not broker data — kept small)
+  dataVolumeCapacity: 50Gi
+  dataVolumeStorageClass: gp3
+
+  # CPU request stays below the m5.large allocatable (~1930m after the EKS
+  # kube/system reservation). Requesting the full "2" vCPU would leave the pod
+  # permanently Pending.
+  resources:
+    requests:
+      cpu: "1500m"
+      memory: 4Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+  podTemplate:
+    # Pin controllers to the dedicated controller node group.
+    nodeSelector:
+      role: controller
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+
+  authorization:
+    type: simple
+    superUsers:
+      - User:kafka
+      - User:admin
+
+  # -------------------------------------------------------------------------
+  # Controller listener — internal only, no TLS required
+  # -------------------------------------------------------------------------
+  listeners:
+    controller:
+      tls:
+        enabled: false
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+
+  configOverrides:
+    server:
+      - authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
+      - confluent.authorizer.access.rule.providers=KRAFT_ACL
+      - allow.everyone.if.no.acl.found=false
+
+  # JMX Prometheus exporter on port 7778
+  metrics:
+    prometheus:
+      rules:
+        - pattern: ".*"
+
+  telemetry:
+    global: false

@@ -1,0 +1,357 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-dns-logs-aggregate
+  namespace: cp-edge
+spec:
+  name: siem_poc_dns_logs-aggregate
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-event-system
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-event-system
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-event-user
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-event-user
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-event-vpn
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-event-vpn
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-traffic-forward
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-traffic-forward
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-traffic-local
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-traffic-local
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-utm-dns
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-utm-dns
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-utm-ips
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-utm-ips
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-utm-virus
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-utm-virus
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-fortigate-logs-utm-webfilter
+  namespace: cp-edge
+spec:
+  name: siem_poc_fortigate_logs-utm-webfilter
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-auth-auth
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-auth-auth
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-globalprotect-globalprotect
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-globalprotect-globalprotect
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-system-general
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-system-general
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-threat-spyware
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-threat-spyware
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-threat-url
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-threat-url
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-threat-virus
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-threat-virus
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-threat-vulnerability
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-threat-vulnerability
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-traffic-deny
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-traffic-deny
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-traffic-end
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-traffic-end
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-paloalto-logs-traffic-start
+  namespace: cp-edge
+spec:
+  name: siem_poc_paloalto_logs-traffic-start
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: siem-poc-windows-eventlog-logs
+  namespace: cp-edge
+spec:
+  name: siem_poc_windows_eventlog_logs
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  replicas: 3
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+    retention.ms: "86400000"
+    min.insync.replicas: "2"

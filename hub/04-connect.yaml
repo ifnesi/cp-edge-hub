@@ -1,0 +1,83 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+  namespace: cp-hub
+spec:
+  replicas: 1
+
+  image:
+    application: docker.io/confluentinc/cp-server-connect:8.2.1
+    init: docker.io/confluentinc/confluent-init-container:3.2.0
+
+  # -------------------------------------------------------------------------
+  # Connector plugins — installed at pod build time from Confluent Hub.
+  # The Splunk Sink connector JAR (v2.2.6) is baked into the Connect image;
+  # the connector instance itself is created later, manually, via Control Center.
+  #   https://docs.confluent.io/kafka-connectors/splunk-sink/current/overview.html
+  # `onDemand` builds require egress to Confluent Hub (provided by the NAT GW).
+  # -------------------------------------------------------------------------
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        confluentHub:
+          - name: kafka-connect-splunk-sink
+            owner: confluentinc
+            version: 2.2.6
+
+  # Modest request; pinned to the broker node group (controller m5.large nodes
+  # are full once a KRaft controller lands). See README node-sizing note.
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+  podTemplate:
+    nodeSelector:
+      role: broker
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+
+  # -------------------------------------------------------------------------
+  # Connects to the Hub Kafka on the internal (non-TLS) listener.
+  # REST API stays internal (http on 8083) — Control Center manages it over the
+  # cluster-internal service, so no external LB and no TLS are needed here.
+  # (The shared tls-kafka cert has no SAN for the Connect service FQDN.)
+  # -------------------------------------------------------------------------
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka.cp-hub.svc.cluster.local:9071
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+      tls:
+        enabled: false
+    # Register with the next-gen Control Center's bundled Prometheus (basic auth).
+    metricsClient:
+      url: http://controlcenter.cp-hub.svc.cluster.local:9090
+      authentication:
+        type: basic
+        basic:
+          secretRef: prometheus-client-creds
+
+  configOverrides:
+    server:
+      - group.id=cp-hub-connect-cluster
+      - config.storage.replication.factor=3
+      - offset.storage.replication.factor=3
+      - status.storage.replication.factor=3
+
+  metrics:
+    prometheus:
+      rules:
+        - pattern: ".*"
+
+  telemetry:
+    global: false

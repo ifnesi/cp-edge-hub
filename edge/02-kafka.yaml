@@ -1,0 +1,178 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Kafka
+metadata:
+  name: kafka
+  namespace: cp-edge
+spec:
+  replicas: 3
+  oneReplicaPerNode: true
+
+  image:
+    application: docker.io/confluentinc/cp-server:8.2.1
+    init: docker.io/confluentinc/confluent-init-container:3.2.0
+
+  # -------------------------------------------------------------------------
+  # Storage — 1 TB per broker, gp3 for better IOPS/throughput on AWS
+  # -------------------------------------------------------------------------
+  dataVolumeCapacity: 1Ti
+  dataVolumeStorageClass: gp3
+
+  # CPU request stays below the m5.xlarge allocatable (~3920m after the EKS
+  # kube/system reservation). Requesting the full "4" vCPU leaves the broker
+  # Pending; the limit can still burst to 4.
+  resources:
+    requests:
+      cpu: "2500m"
+      memory: 8Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+  podTemplate:
+    # Pin brokers to the dedicated broker node group (m5.xlarge).
+    nodeSelector:
+      role: broker
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+
+  # -------------------------------------------------------------------------
+  # TLS — server cert for external listener; reused by embedded REST proxy
+  # -------------------------------------------------------------------------
+  tls:
+    secretRef: tls-kafka
+
+  # -------------------------------------------------------------------------
+  # KRaft controller reference (same namespace, same cluster)
+  # -------------------------------------------------------------------------
+  dependencies:
+    kRaftController:
+      controllerListener:
+        tls:
+          enabled: false
+        authentication:
+          type: plain
+          jaasConfig:
+            secretRef: credential
+      clusterRef:
+        name: kraftcontroller
+        namespace: cp-edge
+
+  authorization:
+    type: simple
+    superUsers:
+      - User:kafka
+      - User:admin
+
+  # -------------------------------------------------------------------------
+  # Listeners
+  #   internal    — broker-to-broker, no TLS, PLAIN SASL
+  #   replication — partition replication, no TLS, PLAIN SASL
+  #   external    — client access, TLS + PLAIN SASL, individual LB per broker
+  # -------------------------------------------------------------------------
+  listeners:
+    internal:
+      tls:
+        enabled: false
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+
+    replication:
+      tls:
+        enabled: false
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+
+    external:
+      tls:
+        enabled: true
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+      externalAccess:
+        type: loadBalancer
+        loadBalancer:
+          domain: edge.kafka.demo
+          brokerPrefix: b
+          # Each broker gets its own NLB — no shared ingress
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+            service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+            service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+  # -------------------------------------------------------------------------
+  # Embedded Kafka REST Proxy (v3 Admin API)
+  # -------------------------------------------------------------------------
+  services:
+    kafkaRest:
+      tls:
+        enabled: true
+      externalAccess:
+        type: loadBalancer
+        loadBalancer:
+          domain: edge.kafka.demo
+          port: 8090
+          sessionAffinity: ClientIP
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+            service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+
+  configOverrides:
+    server:
+      - confluent.balancer.enable=true
+      - authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
+      - confluent.authorizer.access.rule.providers=KRAFT_ACL
+      - allow.everyone.if.no.acl.found=false
+      # Replication factors — set to 3 for production-grade HA
+      - offsets.topic.replication.factor=3
+      - transaction.state.log.replication.factor=3
+      - transaction.state.log.min.isr=2
+      - confluent.license.topic.replication.factor=3
+      - confluent.metadata.topic.replication.factor=3
+      - confluent.balancer.topic.replication.factor=3
+      - confluent.security.event.logger.exporter.kafka.topic.replicas=3
+      - confluent.cluster.link.metadata.topic.replication.factor=3
+    log4j:
+      - log4j.rootLogger=INFO, stdout
+
+  # -------------------------------------------------------------------------
+  # Metrics — enables JMX Prometheus exporter on port 7778 per broker pod.
+  # Scraped by Prometheus via PodMonitor (see monitoring/02-podmonitors.yaml).
+  # -------------------------------------------------------------------------
+  metrics:
+    prometheus:
+      rules:
+        - pattern: ".*"
+
+  # Note: no metricReporter — next-gen Control Center (2.x) collects metrics via
+  # Prometheus, not the legacy _confluent-metrics topic. Edge has no C3, so it is
+  # observed through its own kube-prometheus-stack + Grafana (see Monitoring).
+  telemetry:
+    global: false
+
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaRestClass
+metadata:
+  name: rest-v3
+  namespace: cp-edge
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-edge
+  kafkaRest:
+    endpoint: https://kafka.cp-edge.svc.cluster.local:8090
+    tls:
+      secretRef: tls-kafka
+    authentication:
+      type: basic
+      basic:
+        secretRef: credential
+        roles:
+          - Administrators

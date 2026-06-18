@@ -1,0 +1,28 @@
+{
+  "CN": "kafka-hub",
+  "hosts": [
+    "kafka",
+    "kafka-hub",
+    "hub.kafka.demo",
+    "*.hub.kafka.demo",
+    "kafka.cp-hub.svc.cluster.local",
+    "*.kafka.cp-hub.svc.cluster.local",
+    "kraftcontroller.cp-hub.svc.cluster.local",
+    "*.kraftcontroller.cp-hub.svc.cluster.local",
+    "schemaregistry.cp-hub.svc.cluster.local",
+    "*.schemaregistry.cp-hub.svc.cluster.local"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "US",
+      "L": "MountainView",
+      "O": "Confluent",
+      "OU": "Hub",
+      "ST": "California"
+    }
+  ]
+}

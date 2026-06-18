@@ -1,0 +1,157 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Kafka
+metadata:
+  name: kafka
+  namespace: cp-hub
+spec:
+  replicas: 3
+  oneReplicaPerNode: true
+
+  image:
+    application: docker.io/confluentinc/cp-server:8.2.1
+    init: docker.io/confluentinc/confluent-init-container:3.2.0
+
+  dataVolumeCapacity: 1Ti
+  dataVolumeStorageClass: gp3
+
+  # CPU request stays below m5.xlarge allocatable (~3920m); limit bursts to 4.
+  resources:
+    requests:
+      cpu: "2500m"
+      memory: 8Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+  podTemplate:
+    nodeSelector:
+      role: broker
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+
+  tls:
+    secretRef: tls-kafka
+
+  dependencies:
+    kRaftController:
+      controllerListener:
+        tls:
+          enabled: false
+        authentication:
+          type: plain
+          jaasConfig:
+            secretRef: credential
+      clusterRef:
+        name: kraftcontroller
+        namespace: cp-hub
+    # Register with the next-gen Control Center's bundled Prometheus (basic auth).
+    metricsClient:
+      url: http://controlcenter.cp-hub.svc.cluster.local:9090
+      authentication:
+        type: basic
+        basic:
+          secretRef: prometheus-client-creds
+
+  authorization:
+    type: simple
+    superUsers:
+      - User:kafka
+      - User:admin
+
+  listeners:
+    internal:
+      tls:
+        enabled: false
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+
+    replication:
+      tls:
+        enabled: false
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+
+    external:
+      tls:
+        enabled: true
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+      externalAccess:
+        type: loadBalancer
+        loadBalancer:
+          domain: hub.kafka.demo
+          brokerPrefix: b
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+            service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+            service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+  services:
+    kafkaRest:
+      tls:
+        enabled: true
+      externalAccess:
+        type: loadBalancer
+        loadBalancer:
+          domain: hub.kafka.demo
+          port: 8090
+          sessionAffinity: ClientIP
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+            service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+
+  configOverrides:
+    server:
+      - confluent.balancer.enable=true
+      - authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
+      - confluent.authorizer.access.rule.providers=KRAFT_ACL
+      - allow.everyone.if.no.acl.found=false
+      - offsets.topic.replication.factor=3
+      - transaction.state.log.replication.factor=3
+      - transaction.state.log.min.isr=2
+      - confluent.license.topic.replication.factor=3
+      - confluent.metadata.topic.replication.factor=3
+      - confluent.balancer.topic.replication.factor=3
+      - confluent.security.event.logger.exporter.kafka.topic.replicas=3
+      - confluent.cluster.link.metadata.topic.replication.factor=3
+    log4j:
+      - log4j.rootLogger=INFO, stdout
+
+  metrics:
+    prometheus:
+      rules:
+        - pattern: ".*"
+
+  # No metricReporter — next-gen C3 (2.x) ingests metrics via Prometheus. The Hub
+  # brokers register with C3's bundled Prometheus through dependencies.metricsClient.
+  telemetry:
+    global: false
+
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaRestClass
+metadata:
+  name: rest-v3
+  namespace: cp-hub
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: cp-hub
+  kafkaRest:
+    endpoint: https://kafka.cp-hub.svc.cluster.local:8090
+    tls:
+      secretRef: tls-kafka
+    authentication:
+      type: basic
+      basic:
+        secretRef: credential
+        roles:
+          - Administrators

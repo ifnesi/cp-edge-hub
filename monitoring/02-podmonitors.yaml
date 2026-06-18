@@ -1,0 +1,100 @@
+# =============================================================================
+# PodMonitors — tell Prometheus to scrape JMX metrics (port 7778) from
+# Confluent Platform pods. Apply to BOTH clusters:
+#
+#   kubectl --context=edge apply -f monitoring/02-podmonitors.yaml -n cp-edge
+#   kubectl --context=hub  apply -f monitoring/02-podmonitors.yaml -n cp-hub
+#
+# CfK exposes the JMX Prometheus exporter on port 7778 on every component
+# pod when spec.metrics.prometheus is configured.
+# =============================================================================
+
+---
+# Kafka brokers
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kafka-brokers
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  podMetricsEndpoints:
+    - port: jmx-metrics      # CfK names this port "jmx-metrics" on port 7778
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    any: true
+
+---
+# KRaft controllers
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kraft-controllers
+spec:
+  selector:
+    matchLabels:
+      app: kraftcontroller
+  podMetricsEndpoints:
+    - port: jmx-metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    any: true
+
+---
+# Schema Registry
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: schema-registry
+spec:
+  selector:
+    matchLabels:
+      app: schemaregistry
+  podMetricsEndpoints:
+    - port: jmx-metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    any: true
+
+---
+# Kafka Connect (Hub only)
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kafka-connect
+spec:
+  selector:
+    matchLabels:
+      app: connect
+  podMetricsEndpoints:
+    - port: jmx-metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    any: true
+
+---
+# Control Center (Hub)
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: control-center
+spec:
+  selector:
+    matchLabels:
+      app: controlcenter
+  podMetricsEndpoints:
+    - port: jmx-metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    any: true

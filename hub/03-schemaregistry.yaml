@@ -1,0 +1,59 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: SchemaRegistry
+metadata:
+  name: schemaregistry
+  namespace: cp-hub
+spec:
+  replicas: 3
+
+  image:
+    application: docker.io/confluentinc/cp-schema-registry:8.2.1
+    init: docker.io/confluentinc/confluent-init-container:3.2.0
+
+  # Modest request; pinned to broker nodes (controller nodes are full). See edge.
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+  podTemplate:
+    nodeSelector:
+      role: broker
+
+  tls:
+    secretRef: tls-kafka
+
+  externalAccess:
+    type: loadBalancer
+    loadBalancer:
+      domain: hub.kafka.demo
+      port: 8081
+      sessionAffinity: ClientIP
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+
+  metrics:
+    prometheus:
+      rules:
+        - pattern: ".*"
+
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka.cp-hub.svc.cluster.local:9071
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+      tls:
+        enabled: false
+    # Register with the next-gen Control Center's bundled Prometheus (basic auth).
+    metricsClient:
+      url: http://controlcenter.cp-hub.svc.cluster.local:9090
+      authentication:
+        type: basic
+        basic:
+          secretRef: prometheus-client-creds

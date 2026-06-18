@@ -1,0 +1,57 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: SchemaRegistry
+metadata:
+  name: schemaregistry
+  namespace: cp-edge
+spec:
+  replicas: 3
+
+  image:
+    application: docker.io/confluentinc/cp-schema-registry:8.2.1
+    init: docker.io/confluentinc/confluent-init-container:3.2.0
+
+  # Modest request so SR co-locates on broker nodes, which have headroom left
+  # over the broker's 2500m request. Controller nodes (m5.large) are full once
+  # a KRaft controller lands, so SR is pinned to the broker node group below.
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+  podTemplate:
+    nodeSelector:
+      role: broker
+
+  # HTTPS — same TLS secret as Kafka (wildcard SAN covers *.cp-edge & *.edge.kafka.demo)
+  tls:
+    secretRef: tls-kafka
+
+  externalAccess:
+    type: loadBalancer
+    loadBalancer:
+      domain: edge.kafka.demo
+      port: 8081
+      sessionAffinity: ClientIP
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+
+  # SR connects to Kafka on the internal (non-TLS) listener
+  # JMX Prometheus exporter on port 7778
+  metrics:
+    prometheus:
+      rules:
+        - pattern: ".*"
+
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka.cp-edge.svc.cluster.local:9071
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: credential
+      tls:
+        enabled: false
