@@ -24,27 +24,27 @@ Schema Linking replicating data from Edge to Hub.
 
 ```
      EKS Cluster A - cp-edge (eu-west-2a)                  EKS Cluster B - cp-hub (eu-west-2a)
-┌─────────────────────────────────────────┐      ┌───────────────────────────────────────────────┐
-│  Controller nodes (m5.large ×3)         │      │  Controller nodes (m5.large ×3)               │
-│    └─▶3× KRaft controller               │      │    └─▶3× KRaft controller                     │
-│  Broker nodes (m5.xlarge ×3)            │      │  Broker nodes (m5.xlarge ×3)                  │
-│    ├─▶3× Kafka broker (1 TB gp3 each)   │      │    ├─▶3× Kafka broker (1 TB gp3 each)         │
-│    │     + embedded REST Proxy (8090)   │      │    │     + embedded REST Proxy (8090)         │
-│    └─▶3× Schema Registry (8081, HTTPS)  │      │    ├─▶3× Schema Registry (8081, HTTPS)        │
-│                                         │      │    ├─▶1× Kafka Connect (8083)                 │
-│  Auth: SASL/PLAIN · KRaft ACLs          │      │    │    └─▶Splunk Sink plugin v2.2.6          │
-│  External: SASL_SSL via NLB-per-broker  │      │    └─▶1× Control Center 2.5.0 (9021, HTTPS)   │
-│                                         │      │         └─▶bundled Prometheus + Alertmanager  │
-│  Monitoring (ns: monitoring):           │      │                                               │
-│    Prometheus + Grafana                 │      │  Auth: SASL/PLAIN · KRaft ACLs                │
-│                                         │      │  External: SASL_SSL via NLB-per-broker        │
-│                                         │      │  Monitoring (ns: monitoring):                 │
-│                                         │      │    Prometheus + Grafana                       │
-└──────────────────┬──────────────────────┘      └──────────────────────▲────────────────────────┘
-                   │                                                    │
-                   │   Cluster Link (topics) + Schema Link (subjects)   │
-                   └────────────────────────────────────────────────────┘
-                          Edge ──▶ Hub  (SASL_SSL, shared CA, NLB)
+┌────────────────────────────────────────┐   ┌──────────────────────────────────────────────┐
+│  Controller nodes (m5.large ×3)        │   │  Controller nodes (m5.large ×3)              │
+│    └─▶3× KRaft controller              │   │    └─▶3× KRaft controller                    │
+│  Broker nodes (m5.xlarge ×3)           │   │  Broker nodes (m5.xlarge ×3)                 │
+│    ├─▶3× Kafka broker (1 TB gp3 each)  │   │    ├─▶3× Kafka broker (1 TB gp3 each)        │
+│    │     + embedded REST Proxy (8090)  │   │    │     + embedded REST Proxy (8090)        │
+│    └─▶3× Schema Registry (8081, HTTPS) │   │    ├─▶3× Schema Registry (8081, HTTPS)       │
+│                                        │   │    ├─▶1× Kafka Connect (8083)                │
+│  Auth: SASL/PLAIN · KRaft ACLs         │   │    │    └─▶Splunk Sink plugin v2.2.6         │
+│  External: SASL_SSL via NLB-per-broker │   │    └─▶1× Control Center 2.5.0 (9021, HTTPS)  │
+│                                        │   │         └─▶bundled Prometheus + Alertmanager │
+│  Monitoring (ns: monitoring):          │   │                                              │
+│    Prometheus + Grafana                │   │  Auth: SASL/PLAIN · KRaft ACLs               │
+│                                        │   │  External: SASL_SSL via NLB-per-broker       │
+│                                        │   │  Monitoring (ns: monitoring):                │
+│                                        │   │    Prometheus + Grafana                      │
+└──────────────────┬─────────────────────┘   └──────────────────────▲───────────────────────┘
+                   │                                                │
+                   │ Cluster Link (topics) + Schema Link (subjects) │
+                   └────────────────────────────────────────────────┘
+                       Edge ──▶ Hub  (SASL_SSL, shared CA, NLB)
 
   Next-gen C3 (2.5.0) monitors the HUB only - it ingests metrics from each Hub
   component (dependencies.metricsClient) into its own bundled Prometheus. The
