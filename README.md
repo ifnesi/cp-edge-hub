@@ -23,7 +23,7 @@ Schema Linking replicating data from Edge to Hub.
 > must always match each other. CfK **3.2.x** supports the CP 8.2 line.
 
 ```
-     EKS Cluster A - cp-edge (eu-west-2a)                  EKS Cluster B - cp-hub (eu-west-2a)
+EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
 ┌────────────────────────────────────────┐   ┌──────────────────────────────────────────────┐
 │  Controller nodes (m5.large ×3)        │   │  Controller nodes (m5.large ×3)              │
 │    └─▶3× KRaft controller              │   │    └─▶3× KRaft controller                    │
@@ -44,13 +44,14 @@ Schema Linking replicating data from Edge to Hub.
                    │                                                │
                    │ Cluster Link (topics) + Schema Link (subjects) │
                    └────────────────────────────────────────────────┘
-                       Edge ──▶ Hub  (SASL_SSL, shared CA, NLB)
+                    Edge ──▶ Hub (SASL_SSL, shared CA, NLB)
 
-  Next-gen C3 (2.5.0) monitors the HUB only - it ingests metrics from each Hub
-  component (dependencies.metricsClient) into its own bundled Prometheus. The
-  EDGE cluster is observed via its own kube-prometheus-stack + Grafana.
-  Cross-cluster, in-pod name resolution for Cluster/Schema Linking is handled by
-  CoreDNS rewrites (scripts/06-cluster-dns.sh) so the *.kafka.demo SANs stay valid.
+  Next-gen C3 (2.5.0) monitors the HUB only - it ingests metrics from each Hub component
+  (dependencies.metricsClient) into its own bundled Prometheus. The EDGE cluster is
+  observed via its own kube-prometheus-stack + Grafana.
+  
+  Cross-cluster, in-pod name resolution for Cluster/Schema Linking is handled by CoreDNS
+  rewrites (scripts/06-cluster-dns.sh) so the *.kafka.demo SANs stay valid.
 ```
 
 ---
