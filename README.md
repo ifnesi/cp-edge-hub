@@ -1,4 +1,4 @@
-# Edge ↔ Hub Confluent Platform Demo — Deployment Guide
+# Edge ↔ Hub Confluent Platform Demo - Deployment Guide
 
 Two independent Confluent Platform clusters (Edge and Hub) deployed across two
 AWS EKS clusters via Confluent for Kubernetes (CfK), with Cluster Linking and
@@ -17,36 +17,36 @@ Schema Linking replicating data from Edge to Hub.
 > **Why CP 8.2:** Confluent's
 > [Supported Versions & Interoperability](https://docs.confluent.io/platform/current/installation/versions-interoperability.html)
 > matrix lists **Control Center 2.5.x with CP through 8.2.x**, so CP **8.2.1** is
-> the build that pairs cleanly with C3 **2.5.0** — no version mismatch. `8.2.1`
+> the build that pairs cleanly with C3 **2.5.0** - no version mismatch. `8.2.1`
 > is the current 8.2 patch; bump if a newer 8.2.x ships. The three
 > `cp-enterprise-control-center-next-gen` / `-prometheus` / `-alertmanager` tags
 > must always match each other. CfK **3.2.x** supports the CP 8.2 line.
 
 ```
-     EKS Cluster A — cp-edge (eu-west-2a)                  EKS Cluster B — cp-hub (eu-west-2a)
-┌─────────────────────────────────────────────┐      ┌─────────────────────────────────────────────┐
-│  Controller nodes (m5.large ×3)             │      │  Controller nodes (m5.large ×3)             │
-│    └─▶3× KRaft controller                   │      │    └─▶3× KRaft controller                   │
-│  Broker nodes (m5.xlarge ×3)                │      │  Broker nodes (m5.xlarge ×3)                │
-│    ├─▶3× Kafka broker (1 TB gp3 each)       │      │    ├─▶3× Kafka broker (1 TB gp3 each)       │
-│    │     + embedded REST Proxy (8090)       │      │    │     + embedded REST Proxy (8090)       │
-│    └─▶3× Schema Registry (8081, HTTPS)      │      │    ├─▶3× Schema Registry (8081, HTTPS)      │
-│                                             │      │    ├─▶1× Kafka Connect (8083)               │
-│  Auth: SASL/PLAIN · KRaft ACLs              │      │    │    └─▶Splunk Sink plugin v2.2.6        │
-│  External: SASL_SSL via NLB-per-broker      │      │    └─▶1× Control Center 2.5.0 (9021, HTTPS) │
-│                                             │      │         └─▶bundled Prometheus + Alertmanager│
-│  Monitoring (ns: monitoring):               │      │                                             │
-│    Prometheus + Grafana                     │      │  Auth: SASL/PLAIN · KRaft ACLs              │
-│                                             │      │  External: SASL_SSL via NLB-per-broker      │
-│                                             │      │  Monitoring (ns: monitoring):               │
-│                                             │      │    Prometheus + Grafana                     │
-└──────────────────┬──────────────────────────┘      └──────────────────▲──────────────────────────┘
+     EKS Cluster A - cp-edge (eu-west-2a)                  EKS Cluster B - cp-hub (eu-west-2a)
+┌─────────────────────────────────────────┐      ┌───────────────────────────────────────────────┐
+│  Controller nodes (m5.large ×3)         │      │  Controller nodes (m5.large ×3)               │
+│    └─▶3× KRaft controller               │      │    └─▶3× KRaft controller                     │
+│  Broker nodes (m5.xlarge ×3)            │      │  Broker nodes (m5.xlarge ×3)                  │
+│    ├─▶3× Kafka broker (1 TB gp3 each)   │      │    ├─▶3× Kafka broker (1 TB gp3 each)         │
+│    │     + embedded REST Proxy (8090)   │      │    │     + embedded REST Proxy (8090)         │
+│    └─▶3× Schema Registry (8081, HTTPS)  │      │    ├─▶3× Schema Registry (8081, HTTPS)        │
+│                                         │      │    ├─▶1× Kafka Connect (8083)                 │
+│  Auth: SASL/PLAIN · KRaft ACLs          │      │    │    └─▶Splunk Sink plugin v2.2.6          │
+│  External: SASL_SSL via NLB-per-broker  │      │    └─▶1× Control Center 2.5.0 (9021, HTTPS)   │
+│                                         │      │         └─▶bundled Prometheus + Alertmanager  │
+│  Monitoring (ns: monitoring):           │      │                                               │
+│    Prometheus + Grafana                 │      │  Auth: SASL/PLAIN · KRaft ACLs                │
+│                                         │      │  External: SASL_SSL via NLB-per-broker        │
+│                                         │      │  Monitoring (ns: monitoring):                 │
+│                                         │      │    Prometheus + Grafana                       │
+└──────────────────┬──────────────────────┘      └──────────────────────▲────────────────────────┘
                    │                                                    │
-                   │   Cluster Link (topics)  + Schema Link (subjects)  │
+                   │   Cluster Link (topics) + Schema Link (subjects)   │
                    └────────────────────────────────────────────────────┘
                           Edge ──▶ Hub  (SASL_SSL, shared CA, NLB)
 
-  Next-gen C3 (2.5.0) monitors the HUB only — it ingests metrics from each Hub
+  Next-gen C3 (2.5.0) monitors the HUB only - it ingests metrics from each Hub
   component (dependencies.metricsClient) into its own bundled Prometheus. The
   EDGE cluster is observed via its own kube-prometheus-stack + Grafana.
   Cross-cluster, in-pod name resolution for Cluster/Schema Linking is handled by
@@ -82,7 +82,7 @@ jq --version
 ```
 
 > **Tip:** `scripts/00-preflight.sh` automates these checks (CLIs, AWS auth,
-> and — once the clusters exist — node readiness, the `role=` node labels, and a
+> and - once the clusters exist - node readiness, the `role=` node labels, and a
 > capacity sanity check). Run it before each major step:
 > ```bash
 > EDGE_CTX=edge HUB_CTX=hub bash scripts/00-preflight.sh
@@ -119,7 +119,7 @@ helm repo update
 
 ---
 
-## Step 0 — Provision EKS Infrastructure with Terraform
+## Step 0 - Provision EKS Infrastructure with Terraform
 
 > **Do this before anything else.** The Terraform creates the VPC, two EKS
 > clusters (`cp-edge` and `cp-hub`), node groups, IAM roles, EBS CSI add-on,
@@ -138,9 +138,9 @@ terraform apply  # takes ~15–20 minutes
 | Resource | Details |
 |----------|---------|
 | VPC | `10.0.0.0/16` |
-| Public subnet | `10.0.0.0/24` (`eu-west-2a`) — NLBs attach here |
-| Private subnet | `10.0.1.0/24` (`eu-west-2a`) — all EKS nodes live here |
-| Private subnet B | `10.0.2.0/24` (`eu-west-2b`) — **empty**, only present because EKS requires cluster subnets to span ≥2 AZs. No nodes/EBS land here, so the workload stays single-AZ |
+| Public subnet | `10.0.0.0/24` (`eu-west-2a`) - NLBs attach here |
+| Private subnet | `10.0.1.0/24` (`eu-west-2a`) - all EKS nodes live here |
+| Private subnet B | `10.0.2.0/24` (`eu-west-2b`) - **empty**, only present because EKS requires cluster subnets to span ≥2 AZs. No nodes/EBS land here, so the workload stays single-AZ |
 | NAT Gateway | Allows nodes to pull images |
 | EKS cluster `cp-edge` | Kubernetes 1.31, public+private endpoint |
 | EKS cluster `cp-hub` | Kubernetes 1.31, public+private endpoint |
@@ -153,7 +153,7 @@ terraform apply  # takes ~15–20 minutes
 > **Node sizing note:** Broker nodes are `m5.xlarge` (4 vCPU / 16 GB) rather
 > than the minimum spec. This leaves ~8 GB headroom for the OS, daemonsets, and
 > JVM overhead on top of the 8 GB pod request. The 1 TB Kafka data EBS volumes
-> are provisioned separately by the CSI driver — they are **not** the node's
+> are provisioned separately by the CSI driver - they are **not** the node's
 > root disk.
 >
 > **CPU request caveat:** Pod CPU *requests* are set below the node's vCPU count
@@ -161,7 +161,7 @@ terraform apply  # takes ~15–20 minutes
 > EKS reserves ~80–100m per node for the kubelet/system. Requesting the full
 > vCPU count (`4` / `2`) leaves pods permanently `Pending`. Limits still burst to
 > the full vCPU count. Schema Registry and Control Center are pinned to the
-> broker node group (via `nodeSelector: role=broker`) — an `m5.large` controller
+> broker node group (via `nodeSelector: role=broker`) - an `m5.large` controller
 > node cannot fit both a KRaft controller and a 2-CPU SR/C3 pod.
 
 ### Point kubectl at the EKS clusters
@@ -234,10 +234,10 @@ export HUB_CTX="hub"
 
 ---
 
-## Step 1 — Generate TLS Certificates
+## Step 1 - Generate TLS Certificates
 
 A single self-signed CA signs certs for both clusters. This lets the Hub verify
-Edge certificates using one shared truststore — essential for Cluster Linking.
+Edge certificates using one shared truststore - essential for Cluster Linking.
 
 ```bash
 bash certs/generate-certs.sh
@@ -263,13 +263,13 @@ certs/
 ```
 
 The Edge server certificate covers:
-- `*.edge.kafka.demo` — external broker FQDNs
-- `*.kafka.cp-edge.svc.cluster.local` — internal K8s service FQDNs
-- `*.schemaregistry.cp-edge.svc.cluster.local` — Schema Registry
+- `*.edge.kafka.demo` - external broker FQDNs
+- `*.kafka.cp-edge.svc.cluster.local` - internal K8s service FQDNs
+- `*.schemaregistry.cp-edge.svc.cluster.local` - Schema Registry
 
 ---
 
-## Step 2 — Install CfK Operator
+## Step 2 - Install CfK Operator
 
 Install **Confluent for Kubernetes 3.2.x** on **both** EKS clusters. The
 operator must be running before any platform CRDs are applied.
@@ -305,7 +305,7 @@ kubectl --context="${EDGE_CTX}" get deploy confluent-operator -n cp-edge \
 
 ---
 
-## Step 3 — Create Kubernetes Secrets
+## Step 3 - Create Kubernetes Secrets
 
 ### Edge
 
@@ -337,14 +337,14 @@ This creates the following secrets in `cp-hub`:
 | `edge-ca-cert` | Edge CA cert (for ClusterLink TLS verification) |
 | `edge-cluster-link-credential` | `cluster-link` user credentials for Edge |
 | `edge-credential` | `admin` credentials for Edge (legacy; unused by next-gen C3) |
-| `prometheus-credentials` | next-gen C3 — bundled Prometheus server basic-auth users |
-| `alertmanager-credentials` | next-gen C3 — bundled Alertmanager server basic-auth users |
-| `prometheus-client-creds` | next-gen C3 — client creds used by components' `metricsClient` + C3 |
-| `alertmanager-client-creds` | next-gen C3 — client creds C3 uses to read Alertmanager |
+| `prometheus-credentials` | next-gen C3 - bundled Prometheus server basic-auth users |
+| `alertmanager-credentials` | next-gen C3 - bundled Alertmanager server basic-auth users |
+| `prometheus-client-creds` | next-gen C3 - client creds used by components' `metricsClient` + C3 |
+| `alertmanager-client-creds` | next-gen C3 - client creds C3 uses to read Alertmanager |
 
 ---
 
-## Step 4 — Deploy Edge Cluster
+## Step 4 - Deploy Edge Cluster
 
 Apply the CRDs in order. Wait for each component before proceeding.
 
@@ -372,7 +372,7 @@ kubectl --context="${EDGE_CTX}" wait pod \
   -l app=schemaregistry -n cp-edge \
   --for=condition=Ready --timeout=300s
 
-# Topics (21 SIEM topics — created via KafkaRestClass once brokers are ready)
+# Topics (21 SIEM topics - created via KafkaRestClass once brokers are ready)
 kubectl --context="${EDGE_CTX}" apply -f edge/04-topics.yaml
 ```
 
@@ -399,7 +399,7 @@ schemaregistry-2              1/1     Running   0
 
 ---
 
-## Step 5 — Deploy Hub Cluster
+## Step 5 - Deploy Hub Cluster
 
 Same sequence as Edge:
 
@@ -422,14 +422,14 @@ kubectl --context="${HUB_CTX}" wait pod -l app=schemaregistry -n cp-hub \
 The Hub runs a single-node Kafka Connect cluster. The
 [Splunk Sink connector](https://docs.confluent.io/kafka-connectors/splunk-sink/current/overview.html)
 **v2.2.6** is baked into the Connect image at build time (`spec.build.onDemand`
-pulls it from Confluent Hub — nodes reach it via the NAT gateway). Only the
+pulls it from Confluent Hub - nodes reach it via the NAT gateway). Only the
 plugin JAR is installed here; the **connector instance is created later,
 manually, in Control Center** (Step 10).
 
 ```bash
 kubectl --context="${HUB_CTX}" apply -f hub/04-connect.yaml
 
-# First start is slow — the init container downloads + installs the plugin.
+# First start is slow - the init container downloads + installs the plugin.
 kubectl --context="${HUB_CTX}" wait pod -l app=connect -n cp-hub \
   --for=condition=Ready --timeout=600s
 
@@ -438,13 +438,13 @@ kubectl --context="${HUB_CTX}" exec -n cp-hub connect-0 -- \
   curl -s http://localhost:8083/connector-plugins | jq -r '.[].class' | grep -i splunk
 ```
 
-> The Splunk Sink connector is a Confluent commercial connector — it runs under
+> The Splunk Sink connector is a Confluent commercial connector - it runs under
 > a 30-day trial without a license key. Supply a license in the connector config
 > (in C3) for longer-running demos.
 
 ---
 
-## Step 6 — Resolve External LB Addresses
+## Step 6 - Resolve External LB Addresses
 
 CfK creates one NLB per broker on AWS. Wait a few minutes for AWS to provision
 them, then run:
@@ -461,7 +461,7 @@ sudo vi /etc/hosts
 ```
 
 NLB FQDNs are used both in `/etc/hosts` and in the `bootstrapEndpoint` of the
-ClusterLink resource. AWS NLBs return hostnames, not IPs — the DNS entries are
+ClusterLink resource. AWS NLBs return hostnames, not IPs - the DNS entries are
 stable across re-provisions so you only need to update `/etc/hosts` once.
 
 > **Tip:** If NLBs are pending for more than 5 minutes, check that your EKS node
@@ -469,18 +469,18 @@ stable across re-provisions so you only need to update `/etc/hosts` once.
 
 ---
 
-## Step 6.5 — Configure Cross-Cluster DNS (required for linking)
+## Step 6.5 - Configure Cross-Cluster DNS (required for linking)
 
 The `/etc/hosts` entries from Step 6 only work for CLI clients **on your Mac**.
 Pods running inside EKS have no such entries, so anything that connects
-cross-cluster *from inside a pod* — Cluster Linking (Hub→Edge) and Schema Linking
-(Edge→Hub) — cannot resolve the `*.kafka.demo` names and will silently fail to
+cross-cluster *from inside a pod* - Cluster Linking (Hub→Edge) and Schema Linking
+(Edge→Hub) - cannot resolve the `*.kafka.demo` names and will silently fail to
 connect.
 
 This script adds CoreDNS `rewrite` rules so each cluster resolves the *other*
 cluster's `*.kafka.demo` FQDNs to the real AWS NLB hostnames (resolvable via the
 NAT gateway). The original `.demo` name is preserved for the TLS handshake, so
-the server cert SANs still match — no hostname-verification changes needed.
+the server cert SANs still match - no hostname-verification changes needed.
 
 ```bash
 EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/06-cluster-dns.sh
@@ -496,7 +496,7 @@ kubectl --context="${HUB_CTX}" -n cp-hub exec kafka-0 -- nslookup b0.edge.kafka.
 
 ---
 
-## Step 7 — Configure Edge ACLs
+## Step 7 - Configure Edge ACLs
 
 The `cluster-link` user must have Read access to all topics and the Describe
 Cluster privilege on Edge before the ClusterLink resource is applied.
@@ -512,7 +512,7 @@ This grants:
 
 ---
 
-## Step 8 — Update ClusterLink Bootstrap Endpoints
+## Step 8 - Update ClusterLink Bootstrap Endpoints
 
 Edit `linking/01-clusterlink.yaml` and replace the `bootstrapEndpoint` value
 with the actual Edge NLB FQDNs from Step 6:
@@ -555,7 +555,7 @@ kafka-topics --list \
 
 ---
 
-## Step 9 — Configure Schema Linking
+## Step 9 - Configure Schema Linking
 
 Schema Linking is done via Schema Registry REST API (no CfK CRD). The script
 configures an Exporter on Edge SR that continuously pushes schemas to Hub SR.
@@ -602,8 +602,8 @@ curl -k \
 | KRaft replicas | 3 | 3 |
 | Broker replicas | 3 | 3 |
 | Schema Registry replicas | 3 | 3 |
-| Kafka Connect | — | 1 (Splunk Sink plugin v2.2.6) |
-| Control Center | — | 1 |
+| Kafka Connect | - | 1 (Splunk Sink plugin v2.2.6) |
+| Control Center | - | 1 |
 | Broker storage | 1 Ti (`gp3`) | 1 Ti (`gp3`) |
 | Broker node | `m5.xlarge` (4 vCPU / 16 GB) | `m5.xlarge` (4 vCPU / 16 GB) |
 | Broker pod CPU | req `2500m` / limit `4` | req `2500m` / limit `4` |
@@ -720,7 +720,7 @@ curl -k --cacert certs/cacerts.pem \
   -u admin:admin-secret \
   https://kafka.edge.kafka.demo:8090/kafka/v3/clusters
 
-# The Kafka cluster ID is assigned randomly by Kafka — it is NOT the KRaft
+# The Kafka cluster ID is assigned randomly by Kafka - it is NOT the KRaft
 # `clusterID` from the CRD. Fetch it from the REST API:
 CLUSTER_ID=$(curl -sk --cacert certs/cacerts.pem -u admin:admin-secret \
   https://kafka.edge.kafka.demo:8090/kafka/v3/clusters | jq -r '.data[0].cluster_id')
@@ -792,7 +792,7 @@ the Hub's Kafka Connect cluster (where you create the Splunk Sink connector).
 The **Edge** cluster is observed separately via its own kube-prometheus-stack +
 Grafana (Steps 11–12).
 
-### Step 10 — Deploy Control Center (Hub)
+### Step 10 - Deploy Control Center (Hub)
 
 C3 manages the Connect cluster from Step 5, so complete **Step 5 (Connect)**
 first. (It no longer reaches Edge, so the Edge NLBs / Step 6.5 are not required
@@ -801,7 +801,7 @@ for C3 itself.)
 ```bash
 kubectl --context="${HUB_CTX}" apply -f hub/05-controlcenter.yaml
 
-# The pod runs three containers (C3 + Prometheus + Alertmanager) — give it time.
+# The pod runs three containers (C3 + Prometheus + Alertmanager) - give it time.
 kubectl --context="${HUB_CTX}" wait pod \
   -l app=controlcenter -n cp-hub \
   --for=condition=Ready --timeout=600s
@@ -811,13 +811,13 @@ kubectl --context="${HUB_CTX}" wait pod \
 the NLB, or port-forward (most reliable):
 
 ```bash
-# Option A — NLB (add to /etc/hosts on your Mac):
+# Option A - NLB (add to /etc/hosts on your Mac):
 kubectl --context="${HUB_CTX}" get svc -n cp-hub \
   -l app=controlcenter -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}'
 # <nlb-address>   controlcenter.hub.kafka.demo
 #   → open https://controlcenter.hub.kafka.demo:9021
 
-# Option B — port-forward:
+# Option B - port-forward:
 kubectl --context="${HUB_CTX}" port-forward -n cp-hub svc/controlcenter 9021:9021
 #   → open https://localhost:9021
 ```
@@ -830,7 +830,7 @@ kubectl --context="${HUB_CTX}" port-forward -n cp-hub svc/controlcenter 9021:902
 beyond the 30-day trial). The plugin is already installed (Step 5); C3 only
 creates the running connector instance.
 
-### Step 11 — Deploy Prometheus + Grafana
+### Step 11 - Deploy Prometheus + Grafana
 
 ```bash
 # Add the Prometheus community Helm repo
@@ -845,7 +845,7 @@ EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" \
 Apply PodMonitors so Prometheus knows to scrape Confluent pods (port 7778):
 
 ```bash
-# Edge — PodMonitors go in the same namespace as the components
+# Edge - PodMonitors go in the same namespace as the components
 kubectl --context="${EDGE_CTX}" apply -f monitoring/02-podmonitors.yaml \
   -n cp-edge
 
@@ -864,7 +864,7 @@ kubectl --context="${EDGE_CTX}" get svc \
 
 Open Grafana at `http://<nlb-address>` and log in with `admin` / `prom-operator`.
 
-### Step 12 — Import Confluent Grafana Dashboards
+### Step 12 - Import Confluent Grafana Dashboards
 
 See `monitoring/03-grafana-dashboards.md` for full instructions. The short
 version:
@@ -889,10 +889,10 @@ Key dashboards: `kafka-cluster.json`, `kafka-kraft.json`,
 
 Two independent layers:
 
-1. **kube-prometheus-stack + Grafana** (namespace `monitoring`, BOTH clusters) —
+1. **kube-prometheus-stack + Grafana** (namespace `monitoring`, BOTH clusters) -
    scrapes the JMX exporters (port 7778) via PodMonitors for the imported
    Confluent Grafana dashboards. This is how the **Edge** cluster is observed.
-2. **Next-gen C3's bundled Prometheus** (Hub only, inside the C3 pod) — fed by
+2. **Next-gen C3's bundled Prometheus** (Hub only, inside the C3 pod) - fed by
    each Hub component's `dependencies.metricsClient`; powers the C3 UI.
 
 ```
@@ -912,7 +912,7 @@ Grafana ◄── dashboards                Grafana ◄── dashboards        
                                                               └── Connect (Splunk Sink)
 ```
 
-> The Hub therefore runs two Prometheis — the shared kube-prometheus-stack (for
+> The Hub therefore runs two Prometheis - the shared kube-prometheus-stack (for
 > Grafana/JMX dashboards) and C3's private bundled one (required by C3 2.x).
 > That's expected; they serve different consumers.
 
@@ -990,7 +990,7 @@ template at the bottom of `linking/01-clusterlink.yaml`).
 ## Teardown
 
 ```bash
-# Hub — CP components (delete top-down: dependents first)
+# Hub - CP components (delete top-down: dependents first)
 kubectl --context="${HUB_CTX}" delete -f hub/05-controlcenter.yaml
 kubectl --context="${HUB_CTX}" delete -f linking/01-clusterlink.yaml
 kubectl --context="${HUB_CTX}" delete -f hub/04-connect.yaml
@@ -998,7 +998,7 @@ kubectl --context="${HUB_CTX}" delete -f hub/03-schemaregistry.yaml
 kubectl --context="${HUB_CTX}" delete -f hub/02-kafka.yaml
 kubectl --context="${HUB_CTX}" delete -f hub/01-kraftcontroller.yaml
 
-# Edge — CP components
+# Edge - CP components
 kubectl --context="${EDGE_CTX}" delete -f edge/04-topics.yaml
 kubectl --context="${EDGE_CTX}" delete -f edge/03-schemaregistry.yaml
 kubectl --context="${EDGE_CTX}" delete -f edge/02-kafka.yaml
@@ -1012,7 +1012,7 @@ helm --kube-context="${HUB_CTX}"  uninstall kube-prometheus-stack -n monitoring
 helm --kube-context="${EDGE_CTX}" uninstall confluent-operator -n cp-edge
 helm --kube-context="${HUB_CTX}"  uninstall confluent-operator -n cp-hub
 
-# Terraform (destroys all AWS infrastructure — VPC, EKS, NLBs, EBS)
+# Terraform (destroys all AWS infrastructure - VPC, EKS, NLBs, EBS)
 cd terraform && terraform destroy
 ```
 
