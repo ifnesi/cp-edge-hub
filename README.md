@@ -1151,6 +1151,23 @@ kubectl --context="${HUB_CTX}" apply -f linking/01-clusterlink.yaml
 
 ## Teardown
 
+### Step A — Delete PVCs (must be done while the clusters are still up)
+
+The EBS volumes provisioned by the CSI driver are **not** reclaimed automatically
+when the cluster is deleted. Delete the PVCs first so Kubernetes can release and
+delete the underlying EBS volumes before Terraform removes the clusters.
+
+```bash
+kubectl --context="${EDGE_CTX}" delete pvc --all -n cp-edge
+kubectl --context="${HUB_CTX}"  delete pvc --all -n cp-hub
+
+# Wait for all PVCs to disappear (and EBS volumes to be deleted) before continuing
+kubectl --context="${EDGE_CTX}" get pvc -n cp-edge -w
+kubectl --context="${HUB_CTX}"  get pvc -n cp-hub  -w
+```
+
+### Step B — Delete CP components and operators
+
 ```bash
 # Hub - CP components (delete top-down: dependents first)
 kubectl --context="${HUB_CTX}" delete -f hub/05-controlcenter.yaml
@@ -1175,10 +1192,10 @@ helm --kube-context="${HUB_CTX}"  uninstall kube-prometheus-stack -n monitoring
 # CfK operators
 helm --kube-context="${EDGE_CTX}" uninstall confluent-operator -n cp-edge
 helm --kube-context="${HUB_CTX}"  uninstall confluent-operator -n cp-hub
-
-# Terraform (destroys all AWS infrastructure - VPC, EKS, NLBs, EBS)
-cd terraform && terraform destroy
 ```
 
-> PersistentVolumeClaims are **not** deleted automatically. To reclaim EBS
-> volumes, run `kubectl delete pvc --all -n cp-edge` and the same for `cp-hub`.
+### Step C — Destroy AWS infrastructure
+
+```bash
+cd terraform && terraform destroy
+```
