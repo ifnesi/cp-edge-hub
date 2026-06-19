@@ -12,7 +12,7 @@ Schema Linking replicating data from Edge to Hub.
 | Confluent for Kubernetes (operator) | **3.2.0** | `confluent-init-container:3.2.0` |
 | Control Center (next-gen) | **2.5.0** | `cp-enterprise-control-center-next-gen:2.5.0` |
 | C3 bundled Prometheus / Alertmanager | **2.5.0** | `cp-enterprise-prometheus` / `cp-enterprise-alertmanager:2.5.0` |
-| Splunk Sink connector | **2.2.6** | installed into Connect from Confluent Hub |
+| Splunk connector | **2.2.6** | `splunk/kafka-connect-splunk` installed into Connect from Confluent Hub |
 
 > **Why CP 8.2:** Confluent's
 > [Supported Versions & Interoperability](https://docs.confluent.io/platform/current/installation/versions-interoperability.html)
@@ -32,7 +32,7 @@ EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
 │   │     + embedded REST Proxy (8090)  │   │   │     + embedded REST Proxy (8090)        │
 │   └─▶3× Schema Registry (8081, HTTPS) │   │   ├─▶3× Schema Registry (8081, HTTPS)       │
 │                                       │   │   ├─▶1× Kafka Connect (8083)                │
-│ Auth: SASL/PLAIN · KRaft ACLs         │   │   │    └─▶Splunk Sink plugin v2.2.6         │
+│ Auth: SASL/PLAIN · KRaft ACLs         │   │   │    └─▶Splunk plugin v2.2.6              │
 │ External: SASL_SSL via NLB-per-broker │   │   └─▶1× Control Center 2.5.0 (9021, HTTPS)  │
 │                                       │   │        └─▶bundled Prometheus + Alertmanager │
 │ Monitoring (ns: monitoring):          │   │                                             │
@@ -591,11 +591,11 @@ kubectl --context="${HUB_CTX}" get pods -n cp-hub -w
 ### Kafka Connect with the Splunk Sink plugin (Hub only)
 
 The Hub runs a single-node Kafka Connect cluster. The
-[Splunk Sink connector](https://docs.confluent.io/kafka-connectors/splunk-sink/current/overview.html)
-**v2.2.6** is baked into the Connect image at build time (`spec.build.onDemand`
-pulls it from Confluent Hub - nodes reach it via the NAT gateway). Only the
-plugin JAR is installed here; the **connector instance is created later,
-manually, in Control Center** (Step 11).
+[Splunk connector](https://github.com/splunk/kafka-connect-splunk)
+(`splunk/kafka-connect-splunk` **v2.2.6**) is baked into the Connect image at
+build time (`spec.build.onDemand` pulls it from Confluent Hub - nodes reach it
+via the NAT gateway). Only the plugin JAR is installed here; the **connector
+instance is created later, manually, in Control Center** (Step 11).
 
 ```bash
 kubectl --context="${HUB_CTX}" apply -f hub/04-connect.yaml
@@ -609,9 +609,8 @@ kubectl --context="${HUB_CTX}" exec -n cp-hub connect-0 -- \
   curl -s http://localhost:8083/connector-plugins | jq -r '.[].class' | grep -i splunk
 ```
 
-> The Splunk Sink connector is a Confluent commercial connector - it runs under
-> a 30-day trial without a license key. Supply a license in the connector config
-> (in C3) for longer-running demos.
+> The Splunk connector (`splunk/kafka-connect-splunk`) is Splunk's open-source
+> connector for forwarding Kafka topics to Splunk HEC. No license key required.
 
 ---
 
@@ -627,7 +626,7 @@ EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/04-get-lb-ips.sh
 Copy the output block into `/etc/hosts` on your Mac:
 
 ```bash
-sudo vi /etc/hosts
+sudo nano /etc/hosts
 # Paste the # --- Edge cluster --- and # --- Hub cluster --- blocks
 ```
 
@@ -773,7 +772,7 @@ curl -k \
 | KRaft replicas | 3 | 3 |
 | Broker replicas | 3 | 3 |
 | Schema Registry replicas | 3 | 3 |
-| Kafka Connect | - | 1 (Splunk Sink plugin v2.2.6) |
+| Kafka Connect | - | 1 (Splunk plugin v2.2.6) |
 | Control Center | - | 1 |
 | Broker storage | 1 Ti (`gp3`) | 1 Ti (`gp3`) |
 | Broker node | `m5.xlarge` (4 vCPU / 16 GB) | `m5.xlarge` (4 vCPU / 16 GB) |
@@ -995,11 +994,10 @@ kubectl --context="${HUB_CTX}" port-forward -n cp-hub svc/controlcenter 9021:902
 
 (Accept the self-signed cert warning.)
 
-**Add the Splunk Sink connector** from the UI: open the **`connect`** cluster →
+**Add the Splunk connector** from the UI: open the **`connect`** cluster →
 **Add connector → Splunk Sink Connector**, then fill in the Splunk HEC settings
-(`splunk.hec.uri`, `splunk.hec.token`, source topics, and a license key for runs
-beyond the 30-day trial). The plugin is already installed (Step 6); C3 only
-creates the running connector instance.
+(`splunk.hec.uri`, `splunk.hec.token`, source topics). The plugin is already
+installed (Step 6); C3 only creates the running connector instance.
 
 ### Step 12 - Deploy Prometheus + Grafana
 

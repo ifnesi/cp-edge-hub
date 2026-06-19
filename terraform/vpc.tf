@@ -29,9 +29,9 @@ resource "aws_subnet" "public" {
 
   tags = {
     Name                            = "${var.resource_prefix}-public-${var.availability_zone}"
-    "kubernetes.io/role/elb"        = "1"
-    "kubernetes.io/cluster/cp-edge" = "shared"
-    "kubernetes.io/cluster/cp-hub"  = "shared"
+    "kubernetes.io/role/elb"                                = "1"
+    "kubernetes.io/cluster/${var.resource_prefix}-edge"     = "shared"
+    "kubernetes.io/cluster/${var.resource_prefix}-hub"      = "shared"
   }
 }
 
@@ -43,10 +43,10 @@ resource "aws_subnet" "private" {
   availability_zone = var.availability_zone
 
   tags = {
-    Name                              = "${var.resource_prefix}-private-${var.availability_zone}"
-    "kubernetes.io/role/internal-elb" = "1"
-    "kubernetes.io/cluster/cp-edge"   = "shared"
-    "kubernetes.io/cluster/cp-hub"    = "shared"
+    Name                                                = "${var.resource_prefix}-private-${var.availability_zone}"
+    "kubernetes.io/role/internal-elb"                   = "1"
+    "kubernetes.io/cluster/${var.resource_prefix}-edge" = "shared"
+    "kubernetes.io/cluster/${var.resource_prefix}-hub"  = "shared"
   }
 }
 
@@ -60,10 +60,10 @@ resource "aws_subnet" "private_b" {
   availability_zone = var.availability_zone_b
 
   tags = {
-    Name                              = "${var.resource_prefix}-private-${var.availability_zone_b}"
-    "kubernetes.io/role/internal-elb" = "1"
-    "kubernetes.io/cluster/cp-edge"   = "shared"
-    "kubernetes.io/cluster/cp-hub"    = "shared"
+    Name                                                = "${var.resource_prefix}-private-${var.availability_zone_b}"
+    "kubernetes.io/role/internal-elb"                   = "1"
+    "kubernetes.io/cluster/${var.resource_prefix}-edge" = "shared"
+    "kubernetes.io/cluster/${var.resource_prefix}-hub"  = "shared"
   }
 }
 

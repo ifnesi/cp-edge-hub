@@ -30,7 +30,7 @@ EDGE_B0=$(get_lb "${EDGE_CTX}" "${EDGE_NS}" "kafka-0-lb")
 EDGE_B1=$(get_lb "${EDGE_CTX}" "${EDGE_NS}" "kafka-1-lb")
 EDGE_B2=$(get_lb "${EDGE_CTX}" "${EDGE_NS}" "kafka-2-lb")
 EDGE_BS=$(get_lb "${EDGE_CTX}" "${EDGE_NS}" "kafka-bootstrap-lb")
-EDGE_SR=$(get_lb "${EDGE_CTX}" "${EDGE_NS}" "schemaregistry-lb")
+EDGE_SR=$(get_lb "${EDGE_CTX}" "${EDGE_NS}" "schemaregistry-bootstrap-lb")
 EDGE_REST=$(get_lb "${EDGE_CTX}" "${EDGE_NS}" "kafka-kafka-rest-bootstrap-lb")
 
 log "Fetching Hub LB addresses (context: ${HUB_CTX:-current})..."
@@ -38,7 +38,7 @@ HUB_B0=$(get_lb "${HUB_CTX}" "${HUB_NS}" "kafka-0-lb")
 HUB_B1=$(get_lb "${HUB_CTX}" "${HUB_NS}" "kafka-1-lb")
 HUB_B2=$(get_lb "${HUB_CTX}" "${HUB_NS}" "kafka-2-lb")
 HUB_BS=$(get_lb "${HUB_CTX}" "${HUB_NS}" "kafka-bootstrap-lb")
-HUB_SR=$(get_lb "${HUB_CTX}" "${HUB_NS}" "schemaregistry-lb")
+HUB_SR=$(get_lb "${HUB_CTX}" "${HUB_NS}" "schemaregistry-bootstrap-lb")
 HUB_REST=$(get_lb "${HUB_CTX}" "${HUB_NS}" "kafka-kafka-rest-bootstrap-lb")
 
 cat <<EOF

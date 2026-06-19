@@ -12,9 +12,10 @@ spec:
 
   # -------------------------------------------------------------------------
   # Connector plugins — installed at pod build time from Confluent Hub.
-  # The Splunk Sink connector JAR (v2.2.6) is baked into the Connect image;
-  # the connector instance itself is created later, manually, via Control Center.
-  #   https://docs.confluent.io/kafka-connectors/splunk-sink/current/overview.html
+  # The Splunk connector JAR (splunk/kafka-connect-splunk v2.2.6) is baked into
+  # the Connect image; the connector instance itself is created later, manually,
+  # via Control Center.
+  #   https://github.com/splunk/kafka-connect-splunk
   # `onDemand` builds require egress to Confluent Hub (provided by the NAT GW).
   # -------------------------------------------------------------------------
   build:
@@ -22,8 +23,8 @@ spec:
     onDemand:
       plugins:
         confluentHub:
-          - name: kafka-connect-splunk-sink
-            owner: confluentinc
+          - name: kafka-connect-splunk
+            owner: splunk
             version: 2.2.6
 
   # Modest request; pinned to the broker node group (controller m5.large nodes

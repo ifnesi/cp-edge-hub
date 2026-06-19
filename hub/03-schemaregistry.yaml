@@ -43,7 +43,6 @@ spec:
     loadBalancer:
       domain: hub.kafka.demo
       port: 8081
-      sessionAffinity: ClientIP
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
         service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
