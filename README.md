@@ -1079,7 +1079,7 @@ In Grafana, open **Kafka cluster**, set the **`Namespace`** variable
 > names like `kafka_server_replicamanager_underreplicatedpartitions`. The
 > JMX-exporter `rules` in `edge/01-kraftcontroller.yaml` / `edge/02-kafka.yaml`
 > (and hub equivalents) flatten the names, and the vendored dashboards key on
-> `namespace`/`pod`. See `monitoring/README.md` for details.
+> `namespace`/`pod`. See [`monitoring/README.md`](monitoring/README.md) for details.
 
 ---
 
