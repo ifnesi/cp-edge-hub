@@ -33,13 +33,13 @@ EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
 │   └─▶3× Schema Registry (8081, HTTPS) │   │   ├─▶3× Schema Registry (8081, HTTPS)       │
 │   └─▶1× Control Center (edge.cluster) │   │   ├─▶1× Kafka Connect (8083)                │
 │                                       │   │   │    └─▶Splunk plugin v2.2.6              │
-│ External: SASL_SSL via NLB-per-broker │   │   └─▶1× Control Center (hub.cluster, 9021)  │
-│ Auth: SASL/PLAIN · KRaft ACLs         │   │        └─▶bundled Prometheus + Alertmanager │
-│ Monitoring: Prometheus ──▶ Hub        │   |                                             |
-│   (no local Grafana)                  │   │ Auth: SASL/PLAIN · KRaft ACLs               │
-│                                       │   │ External: SASL_SSL via NLB-per-broker       │
-│                                       │   │ Monitoring: Prometheus + Grafana            │
-│                                       │   │   (single Grafana — both clusters)          │
+│                                       │   │   └─▶1× Control Center (hub.cluster, 9021)  │
+│                                       │   │        └─▶bundled Prometheus + Alertmanager │
+│                                       │   |                                             |
+│ External: SASL_SSL via NLB-per-broker │   │ Auth: SASL/PLAIN · KRaft ACLs               │
+│ Auth: SASL/PLAIN · KRaft ACLs         │   │ External: SASL_SSL via NLB-per-broker       │
+│ Monitoring: Prometheus ──▶ Hub        │   │ Monitoring: Prometheus + Grafana            │
+│    (no local Grafana)                 │   │   (single Grafana — both clusters)          │
 └─────────────────┬─────────────────────┘   └──────────────────────▲──────────────────────┘
                   │                                                │
                   │ Cluster Link (topics) + Schema Link (subjects) │
