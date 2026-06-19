@@ -32,3 +32,6 @@ __pycache__/
 
 # Confluent Platform license key
 license.txt
+
+# JMX Monitoring Stacks
+jmx-monitoring-stacks/

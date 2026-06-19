@@ -20,7 +20,7 @@ spec:
     matchLabels:
       app: kafka
   podMetricsEndpoints:
-    - port: jmx-metrics      # CfK names this port "jmx-metrics" on port 7778
+    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s
@@ -38,7 +38,7 @@ spec:
     matchLabels:
       app: kraftcontroller
   podMetricsEndpoints:
-    - port: jmx-metrics
+    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s
@@ -56,7 +56,7 @@ spec:
     matchLabels:
       app: schemaregistry
   podMetricsEndpoints:
-    - port: jmx-metrics
+    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s
@@ -74,7 +74,7 @@ spec:
     matchLabels:
       app: connect
   podMetricsEndpoints:
-    - port: jmx-metrics
+    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s
@@ -92,7 +92,7 @@ spec:
     matchLabels:
       app: controlcenter
   podMetricsEndpoints:
-    - port: jmx-metrics
+    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s

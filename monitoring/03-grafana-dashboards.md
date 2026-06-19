@@ -10,10 +10,9 @@ https://github.com/confluentinc/jmx-monitoring-stacks
 ```bash
 # Clone the repo
 git clone https://github.com/confluentinc/jmx-monitoring-stacks.git
-cd jmx-monitoring-stacks
 ```
 
-The dashboards are in `jmxexporter-prometheus-grafana/assets/grafana/`.
+The dashboards are in `jmx-monitoring-stacks/jmxexporter-prometheus-grafana/assets/grafana/`.
 
 Relevant dashboards for this PoC:
 
@@ -36,19 +35,58 @@ Relevant dashboards for this PoC:
 ### Import via API (scripted)
 
 ```bash
-GRAFANA_URL="http://<grafana-nlb-address>"
-GRAFANA_CREDS="admin:prom-operator"
-DASHBOARD_DIR="./jmx-monitoring-stacks/jmxexporter-prometheus-grafana/assets/grafana"
+# Pick the cluster whose Grafana you want to load (edge or hub):
+CTX="${EDGE_CTX:-edge}"
 
-for f in "${DASHBOARD_DIR}"/*.json; do
-  echo "Importing $(basename $f)..."
-  curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -u "${GRAFANA_CREDS}" \
-    --data "{\"dashboard\": $(cat $f), \"overwrite\": true, \"folderId\": 0}" \
-    "${GRAFANA_URL}/api/dashboards/import" | jq .status
+# Resolve the Grafana NLB address straight from the cluster:
+GRAFANA_URL="http://$(kubectl --context="${CTX}" get svc \
+  -n monitoring kube-prometheus-stack-grafana \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+GRAFANA_CREDS="admin:prom-operator"
+# Use the current-exporter dashboards (not the dashboards-old-exporter copies):
+DASHBOARD_DIR="./jmx-monitoring-stacks/jmxexporter-prometheus-grafana/assets/grafana/provisioning/dashboards"
+
+# Clone the dashboards repo if it isn't here yet:
+[ -d ./jmx-monitoring-stacks ] || \
+  git clone https://github.com/confluentinc/jmx-monitoring-stacks.git
+
+# These dashboards declare an `__inputs` Prometheus datasource placeholder, so the
+# import must bind it to the real datasource via `inputs` — otherwise it silently
+# fails. kube-prometheus-stack provisions a Prometheus datasource with uid "prometheus".
+DS_UID="prometheus"
+
+find "${DASHBOARD_DIR}" -name '*.json' | while read -r f; do
+  echo "Importing $(basename "$f")..."
+  jq --arg ds "${DS_UID}" \
+    '{dashboard: ., overwrite: true, folderId: 0,
+      inputs: [(.__inputs // [])[] | select(.type=="datasource")
+               | {name: .name, type: "datasource", pluginId: .pluginId, value: $ds}]}' "$f" \
+  | curl -s -X POST -H "Content-Type: application/json" -u "${GRAFANA_CREDS}" \
+      --data @- "${GRAFANA_URL}/api/dashboards/import" \
+  | jq -r '"  imported=\(.imported)  title=\(.title)"'
 done
 ```
+
+> The response field that signals success is **`imported: true`** (`status` is
+> always `null` for this endpoint — ignore it).
+
+### Troubleshooting: panels show "N/A" / "No data"
+
+1. **No targets scraped.** The PodMonitors must scrape the CfK metrics port,
+   which is **named `prometheus` (7778)** — not `jmx-metrics`. Confirm Prometheus
+   has live targets:
+   ```bash
+   kubectl --context="${EDGE_CTX:-edge}" exec -n monitoring \
+     prometheus-kube-prometheus-stack-prometheus-0 -c prometheus -- \
+     wget -qO- 'http://localhost:9090/api/v1/query?query=count(up{namespace="cp-edge"})' | jq -c '.data.result'
+   ```
+   A non-zero count means scraping works. If zero, re-check `monitoring/02-podmonitors.yaml`
+   uses `port: prometheus`.
+2. **Dashboard template variables.** At the top of the dashboard, set the
+   **`Environment`** variable (it defaults to `None`) to the available value, and
+   widen the **time range** (top-right) to *Last 15 minutes* so scraped points fall
+   in-window.
+3. **No traffic yet.** Producer/consumer panels stay empty until apps are running.
 
 ## Key Metrics to Watch
 

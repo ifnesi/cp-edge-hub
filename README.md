@@ -46,9 +46,9 @@ EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
                   └────────────────────────────────────────────────┘
                    Edge ──▶ Hub (SASL_SSL, shared CA, NLB)
 
-  Next-gen C3 (2.5.0) monitors the HUB only - it ingests metrics from each Hub component
-  (dependencies.metricsClient) into its own bundled Prometheus. The EDGE cluster is
-  observed via its own kube-prometheus-stack + Grafana.
+  Next-gen C3 (2.5.0) runs on BOTH clusters (hub.cluster / edge.cluster) - each ingests
+  metrics from its own components (dependencies.metricsClient) into its bundled Prometheus.
+  Both clusters are also observed via their own kube-prometheus-stack + Grafana.
   
   Cross-cluster, in-pod name resolution for Cluster/Schema Linking is handled by CoreDNS
   rewrites (scripts/06-cluster-dns.sh) so the *.kafka.demo SANs stay valid.
@@ -956,8 +956,8 @@ curl -k --cacert certs/cacerts.pem \
 
 | Component | Where | How to access |
 |-----------|-------|--------------|
-| **Control Center** | Hub cluster, namespace `cp-hub` | `https://controlcenter.hub.kafka.demo:9021` |
-| **Kafka Connect** | Hub cluster, namespace `cp-hub` | Managed from C3; REST `http://connect.cp-hub.svc.cluster.local:8083` (in-cluster) |
+| **Control Center** | Both clusters (`cp-hub` = `hub.cluster`, `cp-edge` = `edge.cluster`) | `https://controlcenter.hub.kafka.demo:9021` / `https://controlcenter.edge.kafka.demo:9021` |
+| **Kafka Connect** | Hub cluster, namespace `cp-hub` | Managed from Hub C3; REST `http://connect.cp-hub.svc.cluster.local:8083` (in-cluster) |
 | **Prometheus** | Both clusters, namespace `monitoring` | Port-forward or internal |
 | **Grafana** | Both clusters, namespace `monitoring` | NLB address (see below) |
 
@@ -1065,12 +1065,12 @@ kubectl --context="${HUB_CTX}" apply -f monitoring/02-podmonitors.yaml \
 Get the Grafana NLB address:
 
 ```bash
-kubectl --context="${EDGE_CTX}" get svc \
+GRAFANA_URL=$(kubectl --context="${EDGE_CTX}" get svc \
   -n monitoring kube-prometheus-stack-grafana \
-  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 ```
 
-Open Grafana at `http://<nlb-address>` and log in with `admin` / `prom-operator`.
+Open Grafana at `http://${GRAFANA_URL}` (echo it if needed) and log in with `admin` / `prom-operator`.
 
 ### Step 13 - Import Confluent Grafana Dashboards
 
@@ -1079,15 +1079,6 @@ version:
 
 ```bash
 git clone https://github.com/confluentinc/jmx-monitoring-stacks.git
-
-GRAFANA_URL="http://<grafana-nlb-address>"
-for f in jmx-monitoring-stacks/jmxexporter-prometheus-grafana/assets/grafana/*.json; do
-  curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -u "admin:prom-operator" \
-    --data "{\"dashboard\": $(cat $f), \"overwrite\": true, \"folderId\": 0}" \
-    "${GRAFANA_URL}/api/dashboards/import" | jq .status
-done
 ```
 
 Key dashboards: `kafka-cluster.json`, `kafka-kraft.json`,
@@ -1100,8 +1091,8 @@ Two independent layers:
 1. **kube-prometheus-stack + Grafana** (namespace `monitoring`, BOTH clusters) -
    scrapes the JMX exporters (port 7778) via PodMonitors for the imported
    Confluent Grafana dashboards. This is how the **Edge** cluster is observed.
-2. **Next-gen C3's bundled Prometheus** (Hub only, inside the C3 pod) - fed by
-   each Hub component's `dependencies.metricsClient`; powers the C3 UI.
+2. **Next-gen C3's bundled Prometheus** (BOTH clusters, inside each C3 pod) - fed
+   by each cluster's components via `dependencies.metricsClient`; powers the C3 UI.
 
 ```
 Edge EKS                              Hub EKS
