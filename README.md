@@ -684,29 +684,31 @@ This grants:
 
 ---
 
-## Step 9 - Update ClusterLink Bootstrap Endpoints
+## Step 9 - Apply the ClusterLink
 
-Edit `linking/01-clusterlink.yaml` and replace the `bootstrapEndpoint` value
-with the actual Edge NLB FQDNs from Step 7:
+**Apply the ClusterLink on the Hub context:**
 
-```yaml
-sourceKafkaCluster:
-  bootstrapEndpoint: "b0.edge.kafka.demo:9092,b1.edge.kafka.demo:9092,b2.edge.kafka.demo:9092"
+```bash
+kubectl --context="${HUB_CTX}" apply -f linking/01-clusterlink.yaml
+kubectl --context="${HUB_CTX}" get clusterlink edge-to-hub -n cp-hub
 ```
 
-Add or remove topics in the `mirrors:` list as needed:
+That's the whole step — no file editing required. `linking/01-clusterlink.yaml`
+already uses the stable `*.edge.kafka.demo` FQDNs for its `bootstrapEndpoint`,
+and the CoreDNS rewrites from Step 7.5 resolve those to the real Edge NLBs from
+inside the Hub pods (so the endpoint stays valid even if NLB IPs change).
+
+> If you skipped Step 7.5, the link will fail to connect — the Hub pods can't
+> resolve `*.edge.kafka.demo` without the CoreDNS rewrites.
+
+**Optional:** to mirror different topics, edit the `mirrors:` list before
+applying:
 
 ```yaml
 mirrors:
   - topicName: "your-topic"
     state: ACTIVE
     replicationFactor: 3
-```
-
-Then apply on the **Hub** context:
-
-```bash
-kubectl --context="${HUB_CTX}" apply -f linking/01-clusterlink.yaml
 ```
 
 Check link status:

@@ -41,6 +41,7 @@ acl --add \
 acl --add \
   --allow-principal "User:cluster-link" \
   --operation Describe \
+  --operation DescribeConfigs \
   --operation Read \
   --topic '*' \
   --resource-pattern-type literal

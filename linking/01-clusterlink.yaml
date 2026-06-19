@@ -2,9 +2,9 @@
 # ClusterLink — applied on the HUB EKS cluster (destination)
 #
 # Before applying:
-#   1. Retrieve Edge bootstrap IPs from the Edge cluster:
-#        kubectl --context=<edge-ctx> get svc -n cp-edge | grep lb
-#      Then fill in EDGE_BOOTSTRAP below (comma-separated broker NLB FQDNs).
+#   1. The bootstrapEndpoint below uses the stable *.edge.kafka.demo FQDNs,
+#      resolved in-cluster by the CoreDNS rewrites (scripts/06-cluster-dns.sh).
+#      No manual NLB-address editing is needed.
 #
 #   2. Create the edge-ca-cert secret on Hub (contains Edge's CA cert):
 #        kubectl --context=<hub-ctx> create secret generic edge-ca-cert \
@@ -33,22 +33,25 @@ metadata:
   name: edge-to-hub
   namespace: cp-hub
 spec:
-  # Destination cluster — the Hub Kafka managed by CfK in this namespace
-  destinationKafkaClusterRef:
-    name: kafka
-    namespace: cp-hub
+  # Destination cluster — the Hub Kafka, addressed via its KafkaRestClass
+  destinationKafkaCluster:
+    kafkaRestClassRef:
+      name: rest-v3
+      namespace: cp-hub
 
   # Source cluster — the Edge Kafka (external, reached via NLB FQDNs)
   sourceKafkaCluster:
-    # Replace with actual Edge NLB FQDNs once deployed.
-    # Using brokerPrefix "b" and domain "edge.kafka.demo":
-    #   b0.edge.kafka.demo:9092, b1.edge.kafka.demo:9092, b2.edge.kafka.demo:9092
+    # Edge Kafka cluster ID (kubectl --context=edge get kafkarestclass rest-v3
+    # -n cp-edge -o jsonpath='{.status.kafkaClusterID}'). Required because the
+    # source is external (no in-cluster KafkaRestClass on Hub for it).
+    clusterID: kMu98poWTRKgSVmnJY6q0A
+    # Stable *.edge.kafka.demo FQDNs; resolved in-cluster by the CoreDNS
+    # rewrites from scripts/06-cluster-dns.sh.
     bootstrapEndpoint: "b0.edge.kafka.demo:9092,b1.edge.kafka.demo:9092,b2.edge.kafka.demo:9092"
     authentication:
       type: plain
-      jaasConfigSecretRef:
-        name: edge-cluster-link-credential
-        key: plain.txt
+      jaasConfig:
+        secretRef: edge-cluster-link-credential
     tls:
       enabled: true
       secretRef: edge-ca-cert
@@ -60,94 +63,94 @@ spec:
     consumer.offset.sync.enable: "true"
     consumer.offset.sync.ms: "30000"
     consumer.offset.group.filters: |
-      {"groupFilters": [{"name": "*", "patternType": "WILDCARD", "filterType": "INCLUDE"}]}
+      {"groupFilters": [{"name": "*", "patternType": "LITERAL", "filterType": "INCLUDE"}]}
 
   # ==========================================================================
   # Mirror topics — exact topic names, no prefix, replicated Edge → Hub.
   # These are the only topics mirrored; all other Edge topics are excluded.
   # ==========================================================================
-  mirrors:
-    - topicName: "siem_poc_dns_logs-aggregate"
+  mirrorTopics:
+    - name: "siem_poc_dns_logs-aggregate"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-event-system"
+    - name: "siem_poc_fortigate_logs-event-system"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-event-user"
+    - name: "siem_poc_fortigate_logs-event-user"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-event-vpn"
+    - name: "siem_poc_fortigate_logs-event-vpn"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-traffic-forward"
+    - name: "siem_poc_fortigate_logs-traffic-forward"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-traffic-local"
+    - name: "siem_poc_fortigate_logs-traffic-local"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-utm-dns"
+    - name: "siem_poc_fortigate_logs-utm-dns"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-utm-ips"
+    - name: "siem_poc_fortigate_logs-utm-ips"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-utm-virus"
+    - name: "siem_poc_fortigate_logs-utm-virus"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_fortigate_logs-utm-webfilter"
+    - name: "siem_poc_fortigate_logs-utm-webfilter"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-auth-auth"
+    - name: "siem_poc_paloalto_logs-auth-auth"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-globalprotect-globalprotect"
+    - name: "siem_poc_paloalto_logs-globalprotect-globalprotect"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-system-general"
+    - name: "siem_poc_paloalto_logs-system-general"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-threat-spyware"
+    - name: "siem_poc_paloalto_logs-threat-spyware"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-threat-url"
+    - name: "siem_poc_paloalto_logs-threat-url"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-threat-virus"
+    - name: "siem_poc_paloalto_logs-threat-virus"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-threat-vulnerability"
+    - name: "siem_poc_paloalto_logs-threat-vulnerability"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-traffic-deny"
+    - name: "siem_poc_paloalto_logs-traffic-deny"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-traffic-end"
+    - name: "siem_poc_paloalto_logs-traffic-end"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_paloalto_logs-traffic-start"
+    - name: "siem_poc_paloalto_logs-traffic-start"
       state: ACTIVE
       replicationFactor: 3
 
-    - topicName: "siem_poc_windows_eventlog_logs"
+    - name: "siem_poc_windows_eventlog_logs"
       state: ACTIVE
       replicationFactor: 3
 
