@@ -1,100 +1,41 @@
 # =============================================================================
-# PodMonitors — tell Prometheus to scrape JMX metrics (port 7778) from
+# PodMonitor — tells Prometheus to scrape JMX metrics (port 7778) from ALL
 # Confluent Platform pods. Apply to BOTH clusters:
 #
 #   kubectl --context=edge apply -f monitoring/02-podmonitors.yaml -n cp-edge
 #   kubectl --context=hub  apply -f monitoring/02-podmonitors.yaml -n cp-hub
 #
-# CfK exposes the JMX Prometheus exporter on port 7778 on every component
-# pod when spec.metrics.prometheus is configured.
+# Modeled on confluentinc/jmx-monitoring-stacks .../cfk/pm-confluent.yaml so the
+# label scheme matches the CfK Grafana dashboards (monitoring/grafana-dashboards/):
+#   - jobLabel: platform.confluent.io/type  → sets job=kafka/schemaregistry/
+#     connect/kraftcontroller/controlcenter (dashboards filter job="kafka" etc.)
+#   - podTargetLabels carries app/type/clusterId onto the metrics
+#   - port "prometheus" is the CfK metrics port (7778)
+# A single selector (confluent-platform Exists) matches every CP component pod.
 # =============================================================================
 
----
-# Kafka brokers
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: kafka-brokers
+  name: pm-confluent
+  labels:
+    monitoring: confluent
 spec:
-  selector:
-    matchLabels:
-      app: kafka
+  jobLabel: platform.confluent.io/type
+  podTargetLabels:
+    - app
+    - clusterId
+    - confluent-platform
+    - platform.confluent.io/type
+    - type
   podMetricsEndpoints:
-    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
+    - port: prometheus
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s
-  namespaceSelector:
-    any: true
-
----
-# KRaft controllers
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: kraft-controllers
-spec:
   selector:
-    matchLabels:
-      app: kraftcontroller
-  podMetricsEndpoints:
-    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
-      path: /metrics
-      interval: 30s
-      scrapeTimeout: 10s
-  namespaceSelector:
-    any: true
-
----
-# Schema Registry
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: schema-registry
-spec:
-  selector:
-    matchLabels:
-      app: schemaregistry
-  podMetricsEndpoints:
-    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
-      path: /metrics
-      interval: 30s
-      scrapeTimeout: 10s
-  namespaceSelector:
-    any: true
-
----
-# Kafka Connect (Hub only)
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: kafka-connect
-spec:
-  selector:
-    matchLabels:
-      app: connect
-  podMetricsEndpoints:
-    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
-      path: /metrics
-      interval: 30s
-      scrapeTimeout: 10s
-  namespaceSelector:
-    any: true
-
----
-# Control Center (Hub)
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: control-center
-spec:
-  selector:
-    matchLabels:
-      app: controlcenter
-  podMetricsEndpoints:
-    - port: prometheus       # CfK names the 7778 metrics port "prometheus"
-      path: /metrics
-      interval: 30s
-      scrapeTimeout: 10s
+    matchExpressions:
+      - key: confluent-platform
+        operator: Exists
   namespaceSelector:
     any: true

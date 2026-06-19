@@ -31,27 +31,25 @@ EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
 │   ├─▶3× Kafka broker (1 TB gp3 each)  │   │   ├─▶3× Kafka broker (1 TB gp3 each)        │
 │   │     + embedded REST Proxy (8090)  │   │   │     + embedded REST Proxy (8090)        │
 │   └─▶3× Schema Registry (8081, HTTPS) │   │   ├─▶3× Schema Registry (8081, HTTPS)       │
-│                                       │   │   ├─▶1× Kafka Connect (8083)                │
-│ Auth: SASL/PLAIN · KRaft ACLs         │   │   │    └─▶Splunk plugin v2.2.6              │
-│ External: SASL_SSL via NLB-per-broker │   │   └─▶1× Control Center 2.5.0 (9021, HTTPS)  │
-│                                       │   │        └─▶bundled Prometheus + Alertmanager │
-│ Monitoring (ns: monitoring):          │   │                                             │
-│   Prometheus + Grafana                │   │ Auth: SASL/PLAIN · KRaft ACLs               │
+│   └─▶1× Control Center (edge.cluster) │   │   ├─▶1× Kafka Connect (8083)                │
+│                                       │   │   │    └─▶Splunk plugin v2.2.6              │
+│ External: SASL_SSL via NLB-per-broker │   │   └─▶1× Control Center (hub.cluster, 9021)  │
+│ Auth: SASL/PLAIN · KRaft ACLs         │   │        └─▶bundled Prometheus + Alertmanager │
+│ Monitoring: Prometheus ──▶ Hub        │   |                                             |
+│   (no local Grafana)                  │   │ Auth: SASL/PLAIN · KRaft ACLs               │
 │                                       │   │ External: SASL_SSL via NLB-per-broker       │
-│                                       │   │ Monitoring (ns: monitoring):                │
-│                                       │   │   Prometheus + Grafana                      │
+│                                       │   │ Monitoring: Prometheus + Grafana            │
+│                                       │   │   (single Grafana — both clusters)          │
 └─────────────────┬─────────────────────┘   └──────────────────────▲──────────────────────┘
                   │                                                │
                   │ Cluster Link (topics) + Schema Link (subjects) │
                   └────────────────────────────────────────────────┘
                    Edge ──▶ Hub (SASL_SSL, shared CA, NLB)
 
-  Next-gen C3 (2.5.0) runs on BOTH clusters (hub.cluster / edge.cluster) - each ingests
-  metrics from its own components (dependencies.metricsClient) into its bundled Prometheus.
-  Both clusters are also observed via their own kube-prometheus-stack + Grafana.
-  
-  Cross-cluster, in-pod name resolution for Cluster/Schema Linking is handled by CoreDNS
-  rewrites (scripts/06-cluster-dns.sh) so the *.kafka.demo SANs stay valid.
+  Two C3 instances (edge.cluster / hub.cluster) each monitor their own cluster.
+  ONE Grafana (on Hub): Edge Prometheus remote-writes to Hub, so a single
+  Grafana shows both clusters. CoreDNS rewrites (scripts/06-cluster-dns.sh)
+  resolve the cross-cluster *.kafka.demo names for Cluster/Schema Linking.
 ```
 
 ---
@@ -701,12 +699,12 @@ inside the Hub pods (so the endpoint stays valid even if NLB IPs change).
 > If you skipped Step 7.5, the link will fail to connect — the Hub pods can't
 > resolve `*.edge.kafka.demo` without the CoreDNS rewrites.
 
-**Optional:** to mirror different topics, edit the `mirrors:` list before
+**Optional:** to mirror different topics, edit the `mirrorTopics:` list before
 applying:
 
 ```yaml
-mirrors:
-  - topicName: "your-topic"
+mirrorTopics:
+  - name: "your-topic"
     state: ACTIVE
     replicationFactor: 3
 ```
@@ -958,21 +956,20 @@ curl -k --cacert certs/cacerts.pem \
 |-----------|-------|--------------|
 | **Control Center** | Both clusters (`cp-hub` = `hub.cluster`, `cp-edge` = `edge.cluster`) | `https://controlcenter.hub.kafka.demo:9021` / `https://controlcenter.edge.kafka.demo:9021` |
 | **Kafka Connect** | Hub cluster, namespace `cp-hub` | Managed from Hub C3; REST `http://connect.cp-hub.svc.cluster.local:8083` (in-cluster) |
-| **Prometheus** | Both clusters, namespace `monitoring` | Port-forward or internal |
-| **Grafana** | Both clusters, namespace `monitoring` | NLB address (see below) |
+| **Grafana (single)** | Hub cluster, namespace `monitoring` | One NLB — shows both clusters (Step 12) |
 
-**Next-gen Control Center 2.5.0** is single-cluster: each C3 instance monitors
-only the one Kafka cluster it's attached to. This demo runs **two** C3 instances
-— one per cluster:
+This demo has **two** monitoring layers, by design:
 
-- **Hub C3** (`name: hub.cluster`) — manages Hub Kafka, Schema Registry, and the
-  Kafka Connect cluster (where you create the Splunk connector).
-- **Edge C3** (`name: edge.cluster`) — manages Edge Kafka + Schema Registry.
-
-Each C3 bundles its own Prometheus + Alertmanager (sidecars) and ingests metrics
-that the cluster's components publish via `dependencies.metricsClient`. The
-`name:` field sets the cluster's display name in the C3 UI (otherwise it shows
-the default `controlcenter.cluster`).
+- **Control Center (per cluster).** Next-gen C3 2.5.0 is single-cluster — each
+  instance monitors only the Kafka cluster it's attached to, so there are two:
+  **`hub.cluster`** (also manages Connect / the Splunk connector) and
+  **`edge.cluster`**. Each bundles its own Prometheus + Alertmanager and ingests
+  metrics via `dependencies.metricsClient`. The `name:` field is the C3 display
+  name (otherwise it shows the default `controlcenter.cluster`).
+- **Grafana (single pane).** A `kube-prometheus-stack` runs on each cluster, but
+  only **Hub** keeps a Grafana. Edge's Prometheus **remote-writes** to Hub's, so
+  one Grafana covers both clusters — switch with the dashboard `Namespace`
+  variable (`cp-edge` / `cp-hub`).
 
 ### Step 11 - Deploy Control Center (Hub)
 
@@ -1038,82 +1035,51 @@ echo "$(dig +short "$HOST" | grep -E '^[0-9.]+$' | head -1)   controlcenter.edge
 # Add to /etc/hosts, then open https://controlcenter.edge.kafka.demo:9021
 ```
 
-### Step 12 - Deploy Prometheus + Grafana
+### Step 12 - Deploy Prometheus + the single Grafana
+
+Installs `kube-prometheus-stack` on both clusters: Hub gets the central
+Prometheus (remote-write receiver) **and the only Grafana**; Edge gets a
+Prometheus that remote-writes to Hub. Takes ~10 minutes.
 
 ```bash
-# Add the Prometheus community Helm repo
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-# Install kube-prometheus-stack on both clusters (this can take up to 20 minutes)
 EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" \
   bash monitoring/01-install-prometheus-stack.sh
 ```
 
-Apply PodMonitors so Prometheus knows to scrape Confluent pods (port 7778):
+Apply the PodMonitor (scrapes the CfK JMX exporter on port `prometheus`/7778) on
+**both** clusters:
 
 ```bash
-# Edge - PodMonitors go in the same namespace as the components
-kubectl --context="${EDGE_CTX}" apply -f monitoring/02-podmonitors.yaml \
-  -n cp-edge
-
-# Hub
-kubectl --context="${HUB_CTX}" apply -f monitoring/02-podmonitors.yaml \
-  -n cp-hub
+kubectl --context="${EDGE_CTX}" apply -f monitoring/02-podmonitors.yaml -n cp-edge
+kubectl --context="${HUB_CTX}"  apply -f monitoring/02-podmonitors.yaml -n cp-hub
 ```
 
-Get the Grafana NLB address:
+Get the (single) Grafana NLB address — **on Hub** — and log in with `admin` / `prom-operator`:
 
 ```bash
-GRAFANA_URL=$(kubectl --context="${EDGE_CTX}" get svc \
-  -n monitoring kube-prometheus-stack-grafana \
-  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+kubectl --context="${HUB_CTX}" get svc -n monitoring kube-prometheus-stack-grafana \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}{"\n"}'
 ```
-
-Open Grafana at `http://${GRAFANA_URL}` (echo it if needed) and log in with `admin` / `prom-operator`.
 
 ### Step 13 - Import Confluent Grafana Dashboards
 
-See `monitoring/03-grafana-dashboards.md` for full instructions. The short
-version:
+Import the CfK-adapted dashboards (vendored in `monitoring/grafana-dashboards/`)
+into the Hub Grafana — one import covers both clusters:
 
 ```bash
-git clone https://github.com/confluentinc/jmx-monitoring-stacks.git
+CTX="${HUB_CTX}" bash monitoring/04-import-dashboards.sh
 ```
 
-Key dashboards: `kafka-cluster.json`, `kafka-kraft.json`,
-`kafka-schema-registry.json`, `kafka-cluster-linking.json`.
+In Grafana, open **Kafka cluster**, set the **`Namespace`** variable
+(`cp-edge` / `cp-hub`), Pod = `All`, time range = *Last 15 minutes*.
 
-### Monitoring architecture summary
-
-Two independent layers:
-
-1. **kube-prometheus-stack + Grafana** (namespace `monitoring`, BOTH clusters) -
-   scrapes the JMX exporters (port 7778) via PodMonitors for the imported
-   Confluent Grafana dashboards. This is how the **Edge** cluster is observed.
-2. **Next-gen C3's bundled Prometheus** (BOTH clusters, inside each C3 pod) - fed
-   by each cluster's components via `dependencies.metricsClient`; powers the C3 UI.
-
-```
-Edge EKS                              Hub EKS
-─────────────────────────────         ─────────────────────────────
-Kafka / KRaft / SR pods               Kafka / KRaft / SR / Connect pods
-   │  JMX :7778                          │  JMX :7778        │ metricsClient
-   ▼                                     ▼                   ▼
-Prometheus (monitoring ns)            Prometheus (monitoring ns)   C3 bundled
-   │                                     │                          Prometheus
-   ▼                                     ▼                          (in C3 pod)
-Grafana ◄── dashboards                Grafana ◄── dashboards            │
-                                                                       ▼
-                                                              Control Center 2.5.0 UI
-                                                              ├── Hub Kafka (topics/brokers)
-                                                              ├── Schema Registry
-                                                              └── Connect (Splunk Sink)
-```
-
-> The Hub therefore runs two Prometheis - the shared kube-prometheus-stack (for
-> Grafana/JMX dashboards) and C3's private bundled one (required by C3 2.x).
-> That's expected; they serve different consumers.
+> **Why these dashboards (not the stock ones):** CfK's JMX exporter emits metrics
+> as `kafka_server_replicamanager_value{name="UnderReplicatedPartitions"}`
+> (attribute as a label), but the stock Confluent dashboards expect *flattened*
+> names like `kafka_server_replicamanager_underreplicatedpartitions`. The
+> JMX-exporter `rules` in `edge/01-kraftcontroller.yaml` / `edge/02-kafka.yaml`
+> (and hub equivalents) flatten the names, and the vendored dashboards key on
+> `namespace`/`pod`. See `monitoring/03-grafana-dashboards.md` for details.
 
 ---
 
@@ -1175,14 +1141,11 @@ KAFKA_USER=myapp KAFKA_PASS=mypassword bash scripts/05-generate-client-configs.s
 
 ## Adding Mirror Topics After Initial Setup
 
-Edit `linking/01-clusterlink.yaml` and add entries to the `mirrors:` list, then:
+Edit `linking/01-clusterlink.yaml`, add entries to the `mirrorTopics:` list, then:
 
 ```bash
 kubectl --context="${HUB_CTX}" apply -f linking/01-clusterlink.yaml
 ```
-
-Alternatively, create individual `KafkaMirrorTopic` resources (see commented
-template at the bottom of `linking/01-clusterlink.yaml`).
 
 ---
 
@@ -1204,7 +1167,8 @@ kubectl --context="${EDGE_CTX}" delete -f edge/03-schemaregistry.yaml
 kubectl --context="${EDGE_CTX}" delete -f edge/02-kafka.yaml
 kubectl --context="${EDGE_CTX}" delete -f edge/01-kraftcontroller.yaml
 
-# Monitoring stacks
+# Monitoring stacks (delete the Hub remote-write NLB first — it's applied separately)
+kubectl --context="${HUB_CTX}" delete svc prometheus-remote-write -n monitoring --ignore-not-found
 helm --kube-context="${EDGE_CTX}" uninstall kube-prometheus-stack -n monitoring
 helm --kube-context="${HUB_CTX}"  uninstall kube-prometheus-stack -n monitoring
 
