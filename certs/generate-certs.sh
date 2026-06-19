@@ -17,14 +17,15 @@ log() { echo "[$(date +%H:%M:%S)] $*"; }
 # ---------------------------------------------------------------------------
 generate_ca() {
   log "Generating shared CA..."
-  cfssl gencert -initca <(cat <<EOF
+  cat <<EOF > "${CERTS_DIR}/ca-csr.json"
 {
   "CN": "Confluent Demo CA",
   "key": { "algo": "rsa", "size": 4096 },
   "names": [{ "C": "US", "O": "Confluent", "OU": "Demo" }]
 }
 EOF
-  ) | cfssljson -bare "${CERTS_DIR}/ca"
+  cfssl gencert -initca "${CERTS_DIR}/ca-csr.json" | cfssljson -bare "${CERTS_DIR}/ca"
+  rm -f "${CERTS_DIR}/ca-csr.json"
 
   # Rename to conventional names
   mv "${CERTS_DIR}/ca.pem"     "${CERTS_DIR}/cacerts.pem"

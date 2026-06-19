@@ -21,20 +21,27 @@ spec:
     secretRef: confluent-license
 
   dataVolumeCapacity: 50Gi
-  dataVolumeStorageClass: gp3
-
-  # CPU request stays below m5.large allocatable (~1930m) so the pod schedules.
-  resources:
-    requests:
-      cpu: "1500m"
-      memory: 4Gi
-    limits:
-      cpu: "2"
-      memory: 4Gi
+  storageClass:
+    name: gp3
 
   podTemplate:
-    nodeSelector:
-      role: controller
+    # CPU request stays below m5.large allocatable (~1930m) so the pod schedules.
+    resources:
+      requests:
+        cpu: "1500m"
+        memory: 4Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - controller
     podSecurityContext:
       fsGroup: 1000
       runAsUser: 1000

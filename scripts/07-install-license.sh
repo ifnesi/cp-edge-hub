@@ -60,31 +60,22 @@ fi
 
 echo "📦 Installing Confluent Platform license..."
 
+# CfK 3.2 expects the license secret key to be `license.txt` and its *value* to
+# be in properties format: `license=<JWT>` (not the bare JWT).
+LICENSE_VALUE="license=${LICENSE_CONTENT}"
+
 # Create license secret on Edge cluster
 echo "  → Creating license secret on Edge cluster (${EDGE_CTX})"
 kubectl --context="${EDGE_CTX}" create secret generic confluent-license \
-  --from-literal=license.txt="${LICENSE_CONTENT}" \
+  --from-literal=license.txt="${LICENSE_VALUE}" \
   -n cp-edge \
   --dry-run=client -o yaml | kubectl --context="${EDGE_CTX}" apply -f -
 
 # Create license secret on Hub cluster
 echo "  → Creating license secret on Hub cluster (${HUB_CTX})"
 kubectl --context="${HUB_CTX}" create secret generic confluent-license \
-  --from-literal=license.txt="${LICENSE_CONTENT}" \
+  --from-literal=license.txt="${LICENSE_VALUE}" \
   -n cp-hub \
   --dry-run=client -o yaml | kubectl --context="${HUB_CTX}" apply -f -
 
 echo "✅ License secrets created successfully"
-echo ""
-echo "📝 Next step: Re-apply the Kafka, KRaft, and SchemaRegistry CRDs to activate the license:"
-echo "   Edge:"
-echo "     kubectl --context=\"${EDGE_CTX}\" apply -f edge/01-kraftcontroller.yaml"
-echo "     kubectl --context=\"${EDGE_CTX}\" apply -f edge/02-kafka.yaml"
-echo "     kubectl --context=\"${EDGE_CTX}\" apply -f edge/03-schemaregistry.yaml"
-echo ""
-echo "   Hub:"
-echo "     kubectl --context=\"${HUB_CTX}\" apply -f hub/01-kraftcontroller.yaml"
-echo "     kubectl --context=\"${HUB_CTX}\" apply -f hub/02-kafka.yaml"
-echo "     kubectl --context=\"${HUB_CTX}\" apply -f hub/03-schemaregistry.yaml"
-echo ""
-echo "   Or just reapply all CRDs in their normal sequence."

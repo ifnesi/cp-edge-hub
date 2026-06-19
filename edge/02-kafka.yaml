@@ -21,23 +21,30 @@ spec:
   # Storage — 1 TB per broker, gp3 for better IOPS/throughput on AWS
   # -------------------------------------------------------------------------
   dataVolumeCapacity: 1Ti
-  dataVolumeStorageClass: gp3
-
-  # CPU request stays below the m5.xlarge allocatable (~3920m after the EKS
-  # kube/system reservation). Requesting the full "4" vCPU leaves the broker
-  # Pending; the limit can still burst to 4.
-  resources:
-    requests:
-      cpu: "2500m"
-      memory: 8Gi
-    limits:
-      cpu: "4"
-      memory: 8Gi
+  storageClass:
+    name: gp3
 
   podTemplate:
+    # CPU request stays below the m5.xlarge allocatable (~3920m after the EKS
+    # kube/system reservation). Requesting the full "4" vCPU leaves the broker
+    # Pending; the limit can still burst to 4.
+    resources:
+      requests:
+        cpu: "2500m"
+        memory: 8Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
     # Pin brokers to the dedicated broker node group (m5.xlarge).
-    nodeSelector:
-      role: broker
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - broker
     podSecurityContext:
       fsGroup: 1000
       runAsUser: 1000

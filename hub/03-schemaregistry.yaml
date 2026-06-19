@@ -17,17 +17,23 @@ spec:
     secretRef: confluent-license
 
   # Modest request; pinned to broker nodes (controller nodes are full). See edge.
-  resources:
-    requests:
-      cpu: "500m"
-      memory: 1Gi
-    limits:
-      cpu: "2"
-      memory: 4Gi
-
   podTemplate:
-    nodeSelector:
-      role: broker
+    resources:
+      requests:
+        cpu: "500m"
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - broker
 
   tls:
     secretRef: tls-kafka
@@ -56,10 +62,3 @@ spec:
           secretRef: credential
       tls:
         enabled: false
-    # Register with the next-gen Control Center's bundled Prometheus (basic auth).
-    metricsClient:
-      url: http://controlcenter.cp-hub.svc.cluster.local:9090
-      authentication:
-        type: basic
-        basic:
-          secretRef: prometheus-client-creds

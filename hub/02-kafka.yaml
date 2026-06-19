@@ -18,20 +18,27 @@ spec:
     secretRef: confluent-license
 
   dataVolumeCapacity: 1Ti
-  dataVolumeStorageClass: gp3
-
-  # CPU request stays below m5.xlarge allocatable (~3920m); limit bursts to 4.
-  resources:
-    requests:
-      cpu: "2500m"
-      memory: 8Gi
-    limits:
-      cpu: "4"
-      memory: 8Gi
+  storageClass:
+    name: gp3
 
   podTemplate:
-    nodeSelector:
-      role: broker
+    # CPU request stays below m5.xlarge allocatable (~3920m); limit bursts to 4.
+    resources:
+      requests:
+        cpu: "2500m"
+        memory: 8Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - broker
     podSecurityContext:
       fsGroup: 1000
       runAsUser: 1000

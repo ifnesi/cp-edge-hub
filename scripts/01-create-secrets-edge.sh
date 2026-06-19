@@ -46,12 +46,15 @@ $KCL create secret generic ca-pair-sslcerts \
   --dry-run=client -o yaml | $KCL apply -f -
 
 # SASL/PLAIN credentials secret
+# plain-interbroker.txt: inter-controller/broker credentials (required by CfK 3.2 KRaftController)
 log "  credential"
 $KCL create secret generic credential \
   --namespace="${NS}" \
   --from-file=plain.txt="${CREDS_DIR}/plain.txt" \
   --from-file=plain-users.json="${CREDS_DIR}/plain-users.json" \
   --from-file=basic.txt="${CREDS_DIR}/basic.txt" \
+  --from-file=plain-interbroker.txt="${CREDS_DIR}/plain-interbroker.txt" \
+  --from-file=kafka-server-listener-internal-plain-metrics.txt="${CREDS_DIR}/kafka-server-listener-internal-plain-metrics.txt" \
   --dry-run=client -o yaml | $KCL apply -f -
 
 log ""

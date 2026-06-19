@@ -30,6 +30,14 @@ for tool in cfssl cfssljson helm kubectl aws terraform jq keytool; do
   if command -v "$tool" >/dev/null 2>&1; then ok "$tool found"; else bad "$tool missing"; fi
 done
 
+# SSM plugin ships as a cask and isn't on PATH the normal way — check the known binary path
+if command -v session-manager-plugin >/dev/null 2>&1 || \
+   [[ -x /usr/local/sessionmanagerplugin/bin/session-manager-plugin ]]; then
+  ok "session-manager-plugin found"
+else
+  warn "session-manager-plugin not found — required for 'aws ssm start-session' (brew install --cask session-manager-plugin)"
+fi
+
 # ---------------------------------------------------------------------------
 hdr "AWS credentials"
 if aws sts get-caller-identity >/dev/null 2>&1; then

@@ -27,23 +27,30 @@ spec:
 
   # Controller metadata log storage (not broker data — kept small)
   dataVolumeCapacity: 50Gi
-  dataVolumeStorageClass: gp3
-
-  # CPU request stays below the m5.large allocatable (~1930m after the EKS
-  # kube/system reservation). Requesting the full "2" vCPU would leave the pod
-  # permanently Pending.
-  resources:
-    requests:
-      cpu: "1500m"
-      memory: 4Gi
-    limits:
-      cpu: "2"
-      memory: 4Gi
+  storageClass:
+    name: gp3
 
   podTemplate:
+    # CPU request stays below the m5.large allocatable (~1930m after the EKS
+    # kube/system reservation). Requesting the full "2" vCPU would leave the pod
+    # permanently Pending.
+    resources:
+      requests:
+        cpu: "1500m"
+        memory: 4Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
     # Pin controllers to the dedicated controller node group.
-    nodeSelector:
-      role: controller
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - controller
     podSecurityContext:
       fsGroup: 1000
       runAsUser: 1000

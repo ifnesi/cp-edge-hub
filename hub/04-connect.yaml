@@ -28,17 +28,23 @@ spec:
 
   # Modest request; pinned to the broker node group (controller m5.large nodes
   # are full once a KRaft controller lands). See README node-sizing note.
-  resources:
-    requests:
-      cpu: "500m"
-      memory: 1Gi
-    limits:
-      cpu: "2"
-      memory: 4Gi
-
   podTemplate:
-    nodeSelector:
-      role: broker
+    resources:
+      requests:
+        cpu: "500m"
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - broker
     podSecurityContext:
       fsGroup: 1000
       runAsUser: 1000
@@ -59,13 +65,6 @@ spec:
           secretRef: credential
       tls:
         enabled: false
-    # Register with the next-gen Control Center's bundled Prometheus (basic auth).
-    metricsClient:
-      url: http://controlcenter.cp-hub.svc.cluster.local:9090
-      authentication:
-        type: basic
-        basic:
-          secretRef: prometheus-client-creds
 
   configOverrides:
     server:

@@ -19,20 +19,27 @@ spec:
 
   # Pod-level resources cover all three containers (C3 + Prometheus + Alertmanager).
   # Kept small so the pod fits a broker node alongside a broker + SR/Connect pod.
-  resources:
-    requests:
-      cpu: "500m"
-      memory: 3Gi
-    limits:
-      cpu: "3"
-      memory: 6Gi
+  dataVolumeCapacity: 50Gi
+  storageClass:
+    name: gp3
 
   podTemplate:
-    nodeSelector:
-      role: broker
-
-  dataVolumeCapacity: 50Gi
-  dataVolumeStorageClass: gp3
+    resources:
+      requests:
+        cpu: "500m"
+        memory: 3Gi
+      limits:
+        cpu: "3"
+        memory: 6Gi
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - broker
 
   # TLS for the C3 web UI (cert SAN *.hub.kafka.demo covers controlcenter.hub.kafka.demo).
   tls:

@@ -18,6 +18,21 @@ output "vpc_id" {
   value = aws_vpc.main.id
 }
 
+output "aws_region" {
+  description = "AWS region used for all resources"
+  value       = var.aws_region
+}
+
+output "producer_host_instance_id" {
+  description = "SSM target for the producer/consumer EC2 host"
+  value       = aws_instance.producer_host.id
+}
+
+output "producer_host_connect_command" {
+  description = "Command to open an SSM session on the producer host"
+  value       = "aws ssm start-session --target ${aws_instance.producer_host.id} --region ${var.aws_region}"
+}
+
 output "kubeconfig_commands" {
   description = "Run these after terraform apply to register both clusters in your kubeconfig"
   value       = <<-EOT

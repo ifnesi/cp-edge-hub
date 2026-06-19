@@ -24,27 +24,27 @@ Schema Linking replicating data from Edge to Hub.
 
 ```
 EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
-┌────────────────────────────────────────┐   ┌──────────────────────────────────────────────┐
-│  Controller nodes (m5.large ×3)        │   │  Controller nodes (m5.large ×3)              │
-│    └─▶3× KRaft controller              │   │    └─▶3× KRaft controller                    │
-│  Broker nodes (m5.xlarge ×3)           │   │  Broker nodes (m5.xlarge ×3)                 │
-│    ├─▶3× Kafka broker (1 TB gp3 each)  │   │    ├─▶3× Kafka broker (1 TB gp3 each)        │
-│    │     + embedded REST Proxy (8090)  │   │    │     + embedded REST Proxy (8090)        │
-│    └─▶3× Schema Registry (8081, HTTPS) │   │    ├─▶3× Schema Registry (8081, HTTPS)       │
-│                                        │   │    ├─▶1× Kafka Connect (8083)                │
-│  Auth: SASL/PLAIN · KRaft ACLs         │   │    │    └─▶Splunk Sink plugin v2.2.6         │
-│  External: SASL_SSL via NLB-per-broker │   │    └─▶1× Control Center 2.5.0 (9021, HTTPS)  │
-│                                        │   │         └─▶bundled Prometheus + Alertmanager │
-│  Monitoring (ns: monitoring):          │   │                                              │
-│    Prometheus + Grafana                │   │  Auth: SASL/PLAIN · KRaft ACLs               │
-│                                        │   │  External: SASL_SSL via NLB-per-broker       │
-│                                        │   │  Monitoring (ns: monitoring):                │
-│                                        │   │    Prometheus + Grafana                      │
-└──────────────────┬─────────────────────┘   └──────────────────────▲───────────────────────┘
-                   │                                                │
-                   │ Cluster Link (topics) + Schema Link (subjects) │
-                   └────────────────────────────────────────────────┘
-                    Edge ──▶ Hub (SASL_SSL, shared CA, NLB)
+┌───────────────────────────────────────┐   ┌─────────────────────────────────────────────┐
+│ Controller nodes (m5.large ×3)        │   │ Controller nodes (m5.large ×3)              │
+│   └─▶3× KRaft controller              │   │   └─▶3× KRaft controller                    │
+│ Broker nodes (m5.xlarge ×3)           │   │ Broker nodes (m5.xlarge ×3)                 │
+│   ├─▶3× Kafka broker (1 TB gp3 each)  │   │   ├─▶3× Kafka broker (1 TB gp3 each)        │
+│   │     + embedded REST Proxy (8090)  │   │   │     + embedded REST Proxy (8090)        │
+│   └─▶3× Schema Registry (8081, HTTPS) │   │   ├─▶3× Schema Registry (8081, HTTPS)       │
+│                                       │   │   ├─▶1× Kafka Connect (8083)                │
+│ Auth: SASL/PLAIN · KRaft ACLs         │   │   │    └─▶Splunk Sink plugin v2.2.6         │
+│ External: SASL_SSL via NLB-per-broker │   │   └─▶1× Control Center 2.5.0 (9021, HTTPS)  │
+│                                       │   │        └─▶bundled Prometheus + Alertmanager │
+│ Monitoring (ns: monitoring):          │   │                                             │
+│   Prometheus + Grafana                │   │ Auth: SASL/PLAIN · KRaft ACLs               │
+│                                       │   │ External: SASL_SSL via NLB-per-broker       │
+│                                       │   │ Monitoring (ns: monitoring):                │
+│                                       │   │   Prometheus + Grafana                      │
+└─────────────────┬─────────────────────┘   └──────────────────────▲──────────────────────┘
+                  │                                                │
+                  │ Cluster Link (topics) + Schema Link (subjects) │
+                  └────────────────────────────────────────────────┘
+                   Edge ──▶ Hub (SASL_SSL, shared CA, NLB)
 
   Next-gen C3 (2.5.0) monitors the HUB only - it ingests metrics from each Hub component
   (dependencies.metricsClient) into its own bundled Prometheus. The EDGE cluster is
@@ -68,6 +68,7 @@ brew install --cask temurin            # JDK for keytool (truststore)
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform   # infrastructure provisioning
 brew install jq                        # JSON parsing in helper scripts
+brew install --cask session-manager-plugin  # SSM shell access to producer EC2
 brew install kubernetes-cli            # kubectl
 ```
 
@@ -156,7 +157,22 @@ Plus this **custom inline policy** for EKS-specific actions:
         "iam:AddRoleToInstanceProfile",
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
-        "logs:PutLogEvents"
+        "logs:PutLogEvents",
+        "ssm:StartSession",
+        "ssm:TerminateSession",
+        "ssm:ResumeSession",
+        "ssm:DescribeSessions",
+        "ssm:GetConnectionStatus",
+        "ssmmessages:CreateControlChannel",
+        "ssmmessages:CreateDataChannel",
+        "ssmmessages:OpenControlChannel",
+        "ssmmessages:OpenDataChannel",
+        "ec2messages:AcknowledgeMessage",
+        "ec2messages:DeleteMessage",
+        "ec2messages:FailMessage",
+        "ec2messages:GetEndpoint",
+        "ec2messages:GetMessages",
+        "ec2messages:SendReply"
       ],
       "Resource": "*"
     }
@@ -194,8 +210,8 @@ Make sure to replace `your_email@example.com` with your actual email address bef
 cd terraform
 
 terraform init
-terraform plan  # review what will be created
-terraform apply -var="owner_email=your_email@example.com"  # ← replace with your email; takes ~15–20 minutes
+terraform plan -var="owner_email=your_email@example.com" # review what will be created
+terraform apply -auto-approve -var="owner_email=your_email@example.com"  # ← replace with your email; takes ~15–20 minutes
 ```
 
 ### What Terraform creates
@@ -206,7 +222,7 @@ terraform apply -var="owner_email=your_email@example.com"  # ← replace with yo
 | Public subnet | `10.0.0.0/24` (`eu-west-2a`) - NLBs attach here |
 | Private subnet | `10.0.1.0/24` (`eu-west-2a`) - all EKS nodes live here |
 | Private subnet B | `10.0.2.0/24` (`eu-west-2b`) - **empty**, only present because EKS requires cluster subnets to span ≥2 AZs. No nodes/EBS land here, so the workload stays single-AZ |
-| NAT Gateway | Allows nodes to pull images |
+| NAT Gateway | Allows nodes to pull images / SSM reachability for producer host |
 | EKS cluster `cp-edge` | Kubernetes 1.36, public+private endpoint |
 | EKS cluster `cp-hub` | Kubernetes 1.36, public+private endpoint |
 | Node group `broker` (×2) | 3 × `m5.xlarge` (4 vCPU / 16 GB) per cluster |
@@ -214,6 +230,8 @@ terraform apply -var="owner_email=your_email@example.com"  # ← replace with yo
 | EBS CSI add-on (×2) | Enables dynamic EBS volume provisioning |
 | StorageClass `gp3` (×2) | Default SC for 1 Ti broker data volumes |
 | IAM roles | Cluster role + node role with ELB + EBS permissions |
+| EC2 `producer-host` | `t3.medium`, private subnet, no public IP — runs Python producers/consumers |
+| IAM role + instance profile | `AmazonSSMManagedInstanceCore` for SSM access |
 
 > **Node sizing note:** Broker nodes are `m5.xlarge` (4 vCPU / 16 GB) rather
 > than the minimum spec. This leaves ~8 GB headroom for the OS, daemonsets, and
@@ -229,6 +247,49 @@ terraform apply -var="owner_email=your_email@example.com"  # ← replace with yo
 > broker node group (via `nodeSelector: role=broker`) - an `m5.large` controller
 > node cannot fit both a KRaft controller and a 2-CPU SR/C3 pod.
 
+### Connect to the producer host via SSM
+
+After `terraform apply`, Terraform prints the instance ID and the ready-to-run
+connect command:
+
+```
+producer_host_instance_id    = "i-0abc1234def56789"
+producer_host_connect_command = "aws ssm start-session --target i-0abc1234def56789 --region eu-west-2"
+```
+
+**Open a shell on the producer host:**
+
+```bash
+# Copy the exact command from terraform output, or:
+INSTANCE_ID=$(terraform output -raw producer_host_instance_id)
+REGION=$(terraform output -raw aws_region)
+aws ssm start-session --target "$INSTANCE_ID" --region "$REGION"
+```
+
+You get a bash shell running as `ssm-user`. No key pair, no public IP, no open
+inbound ports. Auth is your local AWS CLI credentials (`AWS_PROFILE=cp-poc`).
+
+> **Why this works:** The instance is in the private subnet. The NAT Gateway
+> gives it outbound HTTPS to reach the SSM endpoints (`ssm.*`, `ssmmessages.*`,
+> `ec2messages.*`). SSM connects inbound through AWS's control plane — no
+> inbound security-group rule is needed on the instance.
+
+**Copy files to the host** (e.g., producer scripts and the CA cert):
+
+```bash
+# requires the SSM plugin; replaces scp
+aws ssm start-session \
+  --target "$INSTANCE_ID" \
+  --region "$REGION" \
+  --document-name AWS-StartSSHSession \
+  --parameters portNumber=22
+# — or use S3 as a staging area —
+aws s3 cp certs/cacerts.pem s3://<your-bucket>/cacerts.pem
+# then inside the SSM session: aws s3 cp s3://<your-bucket>/cacerts.pem .
+```
+
+---
+
 ### Point kubectl at the EKS clusters
 
 After `terraform apply` completes, register both clusters in your local
@@ -236,17 +297,15 @@ kubeconfig. **This replaces any Docker Desktop / local cluster as the active
 context.**
 
 ```bash
+# Read names and region directly from Terraform state (avoids hardcoding)
+EDGE_NAME=$(terraform output -raw edge_cluster_name)
+HUB_NAME=$(terraform output -raw hub_cluster_name)
+
 # Register Edge cluster (aliased as "edge" in kubeconfig)
-aws eks update-kubeconfig \
-  --region eu-west-2 \
-  --name cp-edge \
-  --alias edge
+aws eks update-kubeconfig --region "$REGION" --name "$EDGE_NAME" --alias edge
 
 # Register Hub cluster (aliased as "hub" in kubeconfig)
-aws eks update-kubeconfig \
-  --region eu-west-2 \
-  --name cp-hub \
-  --alias hub
+aws eks update-kubeconfig --region "$REGION" --name "$HUB_NAME" --alias hub
 ```
 
 Verify both contexts exist and point to EKS (not Docker):
@@ -254,8 +313,8 @@ Verify both contexts exist and point to EKS (not Docker):
 ```bash
 kubectl config get-contexts
 # Should show:
-#   edge    cp-edge    ...   <AWS account>.gr7.eu-west-2.eks.amazonaws.com
-#   hub     cp-hub     ...   <AWS account>.gr7.eu-west-2.eks.amazonaws.com
+#   edge    CpEdgeHub-edge    ...   <AWS account>.gr7.eu-west-2.eks.amazonaws.com
+#   hub     CpEdgeHub-hub     ...   <AWS account>.gr7.eu-west-2.eks.amazonaws.com
 ```
 
 Check that nodes are Ready on both clusters:
@@ -298,6 +357,8 @@ export HUB_CTX="hub"
 | Run one command against Hub | `kubectl --context=hub <command>` |
 
 ---
+
+> **Back to repo root:** All steps from here on run from the repository root. If you followed Step 0 from inside `terraform/`, run `cd ..` before continuing.
 
 ## Step 1 - Generate TLS Certificates
 
@@ -409,7 +470,7 @@ This creates the following secrets in `cp-hub`:
 
 ---
 
-## Step 3.5 - Handle Confluent Platform License
+## Step 4 - Handle Confluent Platform License
 
 The CfK resources are configured to use a license by default. Follow one of these paths:
 
@@ -432,23 +493,8 @@ EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/07-install-license.sh
 This script:
 - Validates the JWT format
 - Creates `confluent-license` secrets in both clusters (`cp-edge` and `cp-hub`)
-- Outputs instructions for reapplying the CRDs
 
-**3. Reapply the resources to activate the license:**
-
-```bash
-# Edge
-kubectl --context="${EDGE_CTX}" apply -f edge/01-kraftcontroller.yaml
-kubectl --context="${EDGE_CTX}" apply -f edge/02-kafka.yaml
-kubectl --context="${EDGE_CTX}" apply -f edge/03-schemaregistry.yaml
-
-# Hub
-kubectl --context="${HUB_CTX}" apply -f hub/01-kraftcontroller.yaml
-kubectl --context="${HUB_CTX}" apply -f hub/02-kafka.yaml
-kubectl --context="${HUB_CTX}" apply -f hub/03-schemaregistry.yaml
-```
-
-The CfK operator will automatically restart pods to load the license.
+> **Run this before Step 5 and Step 6.**  The license secret will be present when the CRDs are first applied — no reapply needed.
 
 ### Path B: You don't have a license (trial mode)
 
@@ -476,7 +522,7 @@ EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/07-install-license.sh
 
 ---
 
-## Step 5 - Deploy Edge Cluster
+## Step 5 - Deploy Edge Cluster  
 
 Apply the CRDs in order. Wait for each component before proceeding.
 
@@ -484,25 +530,21 @@ Apply the CRDs in order. Wait for each component before proceeding.
 # KRaft controllers
 kubectl --context="${EDGE_CTX}" apply -f edge/01-kraftcontroller.yaml
 
-# Wait for all 3 KRaft pods to be Running
-kubectl --context="${EDGE_CTX}" wait pod \
-  -l app=kraftcontroller -n cp-edge \
-  --for=condition=Ready --timeout=300s
+# Wait for all 3 KRaft pods to be Running (operator creates them asynchronously — watch until they appear)
+kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
+# Once all 3 kraftcontroller pods show Running/Ready, Ctrl-C and proceed.
 
 # Kafka brokers + KafkaRestClass
 kubectl --context="${EDGE_CTX}" apply -f edge/02-kafka.yaml
 
 # Wait for all 3 broker pods to be Running
-kubectl --context="${EDGE_CTX}" wait pod \
-  -l app=kafka -n cp-edge \
-  --for=condition=Ready --timeout=300s
+kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
 
 # Schema Registry
 kubectl --context="${EDGE_CTX}" apply -f edge/03-schemaregistry.yaml
 
-kubectl --context="${EDGE_CTX}" wait pod \
-  -l app=schemaregistry -n cp-edge \
-  --for=condition=Ready --timeout=300s
+# Wait for all 3 schema registry pods to be Running
+kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
 
 # Topics (21 SIEM topics - created via KafkaRestClass once brokers are ready)
 kubectl --context="${EDGE_CTX}" apply -f edge/04-topics.yaml
@@ -537,16 +579,13 @@ Same sequence as Edge:
 
 ```bash
 kubectl --context="${HUB_CTX}" apply -f hub/01-kraftcontroller.yaml
-kubectl --context="${HUB_CTX}" wait pod -l app=kraftcontroller -n cp-hub \
-  --for=condition=Ready --timeout=300s
+kubectl --context="${HUB_CTX}" get pods -n cp-hub -w
 
 kubectl --context="${HUB_CTX}" apply -f hub/02-kafka.yaml
-kubectl --context="${HUB_CTX}" wait pod -l app=kafka -n cp-hub \
-  --for=condition=Ready --timeout=300s
+kubectl --context="${HUB_CTX}" get pods -n cp-hub -w
 
 kubectl --context="${HUB_CTX}" apply -f hub/03-schemaregistry.yaml
-kubectl --context="${HUB_CTX}" wait pod -l app=schemaregistry -n cp-hub \
-  --for=condition=Ready --timeout=300s
+kubectl --context="${HUB_CTX}" get pods -n cp-hub -w
 ```
 
 ### Kafka Connect with the Splunk Sink plugin (Hub only)
