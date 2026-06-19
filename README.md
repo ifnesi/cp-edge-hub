@@ -734,17 +734,19 @@ kafka-topics --list \
 Schema Linking is done via Schema Registry REST API (no CfK CRD). The script
 configures an Exporter on Edge SR that continuously pushes schemas to Hub SR.
 
-Export all subjects:
+**Export all subjects (default — use this):**
 
 ```bash
 bash linking/02-schema-exporter.sh
 ```
 
-Export specific subjects only:
-
-```bash
-SUBJECTS="my-topic-value,my-topic-key" bash linking/02-schema-exporter.sh
-```
+> **Optional:** to limit the exporter to specific subjects instead of all, set
+> `SUBJECTS` to a comma-separated list. Skip this unless you have a reason to
+> restrict it:
+>
+> ```bash
+> SUBJECTS="my-topic-value,my-topic-key" bash linking/02-schema-exporter.sh
+> ```
 
 Check exporter status:
 
@@ -976,25 +978,25 @@ for C3 itself.)
 kubectl --context="${HUB_CTX}" apply -f hub/05-controlcenter.yaml
 
 # The pod runs three containers (C3 + Prometheus + Alertmanager) - give it time.
-kubectl --context="${HUB_CTX}" wait pod \
-  -l app=controlcenter -n cp-hub \
-  --for=condition=Ready --timeout=600s
+kubectl --context="${HUB_CTX}" get pods -n cp-hub -w
 ```
 
-**Access the UI.** The C3 web UI is on port 9021 (HTTPS). Either reach it via
-the NLB, or port-forward (most reliable):
+**Access the UI.** The C3 web UI is on port 9021 (HTTPS), exposed via its own
+NLB (`controlcenter-bootstrap-lb`). Resolve it to an `/etc/hosts` entry like the
+other components, then open it in your browser:
 
 ```bash
-# Option A - NLB (add to /etc/hosts on your Mac):
-kubectl --context="${HUB_CTX}" get svc -n cp-hub \
-  -l app=controlcenter -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}'
-# <nlb-address>   controlcenter.hub.kafka.demo
-#   → open https://controlcenter.hub.kafka.demo:9021
+# Resolve the C3 NLB to an IP and print the /etc/hosts line:
+HOST=$(kubectl --context="${HUB_CTX}" get svc controlcenter-bootstrap-lb -n cp-hub \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "$(dig +short "$HOST" | grep -E '^[0-9.]+$' | head -1)   controlcenter.hub.kafka.demo"
 
-# Option B - port-forward:
-kubectl --context="${HUB_CTX}" port-forward -n cp-hub svc/controlcenter 9021:9021
-#   → open https://localhost:9021
+# Add that line to /etc/hosts, then open:
+#   https://controlcenter.hub.kafka.demo:9021
 ```
+
+> **Fallback (no /etc/hosts edit):** `kubectl --context="${HUB_CTX}" port-forward
+> -n cp-hub svc/controlcenter 9021:9021`, then open `https://localhost:9021`.
 
 (Accept the self-signed cert warning.)
 

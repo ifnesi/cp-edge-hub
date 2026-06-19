@@ -50,6 +50,15 @@ spec:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
         service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 
+  # Enable the Schema Exporter (Schema Linking) REST API — registers the
+  # /exporters endpoints used by linking/02-schema-exporter.sh.
+  configOverrides:
+    server:
+      - resource.extension.class=io.confluent.schema.exporter.SchemaExporterResourceExtension
+      - kafkastore.update.handlers=io.confluent.schema.exporter.storage.SchemaExporterUpdateHandler
+      # Required to encrypt the exporter's stored destination credentials.
+      - password.encoder.secret=cp-edge-hub-demo-encoder-secret
+
   # SR connects to Kafka on the internal (non-TLS) listener
   # JMX Prometheus exporter on port 7778
   metrics:

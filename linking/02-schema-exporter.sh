@@ -118,8 +118,19 @@ fi
 # ---------------------------------------------------------------------------
 # 4. Start the exporter
 # ---------------------------------------------------------------------------
-log "Starting exporter '${EXPORTER_NAME}'..."
-sr_curl "${EDGE_SR_URL}/exporters/${EXPORTER_NAME}/resume" -X PUT | jq .
+log "Ensuring exporter '${EXPORTER_NAME}' is running..."
+# Exporters auto-start on creation, so /resume returns 409 if already RUNNING —
+# that's a success case, not an error.
+RESUME_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+  --cacert "${CA_CERT}" -u "${EDGE_SR_USER}:${EDGE_SR_PASS}" \
+  -X PUT "${EDGE_SR_URL}/exporters/${EXPORTER_NAME}/resume")
+if [[ "${RESUME_STATUS}" == "200" ]]; then
+  log "Exporter resumed."
+elif [[ "${RESUME_STATUS}" == "409" ]]; then
+  log "Exporter already running (409) — nothing to do."
+else
+  log "WARNING: unexpected resume status ${RESUME_STATUS}"
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Verify
