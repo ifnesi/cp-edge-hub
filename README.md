@@ -630,9 +630,11 @@ sudo nano /etc/hosts
 # Paste the # --- Edge cluster --- and # --- Hub cluster --- blocks
 ```
 
-NLB FQDNs are used both in `/etc/hosts` and in the `bootstrapEndpoint` of the
-ClusterLink resource. AWS NLBs return hostnames, not IPs - the DNS entries are
-stable across re-provisions so you only need to update `/etc/hosts` once.
+`/etc/hosts` only accepts IP addresses, so the script resolves each AWS NLB
+hostname to its current IP before printing the entries. **These NLB IPs are not
+guaranteed to be static** — if AWS recycles them, re-run the script and update
+`/etc/hosts`. (The ClusterLink `bootstrapEndpoint`, by contrast, uses the NLB
+*hostnames* directly and is resolved in-cluster by CoreDNS — see Step 7.5.)
 
 > **Tip:** If NLBs are pending for more than 5 minutes, check that your EKS node
 > IAM role has the `elasticloadbalancing:*` permissions.
@@ -659,7 +661,7 @@ EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/06-cluster-dns.sh
 Verify resolution from inside a Hub broker pod:
 
 ```bash
-kubectl --context="${HUB_CTX}" -n cp-hub exec kafka-0 -- nslookup b0.edge.kafka.demo
+kubectl --context="${HUB_CTX}" -n cp-hub exec kafka-0 -c kafka -- getent hosts b0.edge.kafka.demo
 ```
 
 > Re-run this script if you re-provision the NLBs (the rules are idempotent).

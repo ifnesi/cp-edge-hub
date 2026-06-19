@@ -49,7 +49,7 @@ build_rules() {
   echo "rewrite name exact b1.${domain} $(get_lb "${ctx}" "${ns}" kafka-1-lb)"
   echo "rewrite name exact b2.${domain} $(get_lb "${ctx}" "${ns}" kafka-2-lb)"
   echo "rewrite name exact ${domain} $(get_lb "${ctx}" "${ns}" kafka-bootstrap-lb)"
-  echo "rewrite name exact schemaregistry.${domain} $(get_lb "${ctx}" "${ns}" schemaregistry-lb)"
+  echo "rewrite name exact schemaregistry.${domain} $(get_lb "${ctx}" "${ns}" schemaregistry-bootstrap-lb)"
   echo "rewrite name exact kafka.${domain} $(get_lb "${ctx}" "${ns}" kafka-kafka-rest-bootstrap-lb)"
 }
 

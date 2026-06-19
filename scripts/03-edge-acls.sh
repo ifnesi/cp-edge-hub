@@ -35,7 +35,7 @@ log "Granting cluster-link user ACLs on Edge..."
 
 acl --add \
   --allow-principal "User:cluster-link" \
-  --operation DescribeCluster \
+  --operation Describe \
   --cluster
 
 acl --add \
@@ -43,14 +43,14 @@ acl --add \
   --operation Describe \
   --operation Read \
   --topic '*' \
-  --resource-pattern-type wildcard
+  --resource-pattern-type literal
 
 acl --add \
   --allow-principal "User:cluster-link" \
   --operation Describe \
   --operation Read \
   --group '*' \
-  --resource-pattern-type wildcard
+  --resource-pattern-type literal
 
 # -------------------------------------------------------------------------
 # client user — all operations on all topics/groups (demo only)
@@ -61,7 +61,7 @@ acl --add \
   --allow-principal "User:client" \
   --operation All \
   --topic '*' \
-  --resource-pattern-type wildcard \
+  --resource-pattern-type literal \
   --group '*'
 
 log ""

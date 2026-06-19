@@ -18,11 +18,23 @@ get_lb() {
   local ctx="$1" ns="$2" svc="$3"
   local kctl="kubectl"
   [[ -n "${ctx}" ]] && kctl="kubectl --context=${ctx}"
-  $kctl get svc "${svc}" -n "${ns}" \
-    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null \
-    || $kctl get svc "${svc}" -n "${ns}" \
-       -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null \
-    || echo "<pending>"
+  local addr
+  addr=$($kctl get svc "${svc}" -n "${ns}" \
+    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+  [[ -z "${addr}" ]] && addr=$($kctl get svc "${svc}" -n "${ns}" \
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+  if [[ -z "${addr}" ]]; then
+    echo "<pending>"
+    return
+  fi
+  # /etc/hosts needs an IP, not a hostname. AWS NLBs return a hostname — resolve it.
+  if [[ "${addr}" =~ ^[0-9.]+$ ]]; then
+    echo "${addr}"
+  else
+    local ip
+    ip=$(dig +short "${addr}" 2>/dev/null | grep -E '^[0-9.]+$' | head -1)
+    echo "${ip:-<unresolved:${addr}>}"
+  fi
 }
 
 log "Fetching Edge LB addresses (context: ${EDGE_CTX:-current})..."
