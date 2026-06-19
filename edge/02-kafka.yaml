@@ -60,6 +60,12 @@ spec:
   # KRaft controller reference (same namespace, same cluster)
   # -------------------------------------------------------------------------
   dependencies:
+    metricsClient:
+      url: http://controlcenter.cp-edge.svc.cluster.local:9090
+      authentication:
+        type: basic
+        basic:
+          secretRef: prometheus-client-creds
     kRaftController:
       controllerListener:
         tls:

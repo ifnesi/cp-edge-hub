@@ -80,6 +80,15 @@ spec:
       - confluent.authorizer.access.rule.providers=KRAFT_ACL
       - allow.everyone.if.no.acl.found=false
 
+  # Register with the Edge Control Center's bundled Prometheus (basic auth).
+  dependencies:
+    metricsClient:
+      url: http://controlcenter.cp-edge.svc.cluster.local:9090
+      authentication:
+        type: basic
+        basic:
+          secretRef: prometheus-client-creds
+
   # JMX Prometheus exporter on port 7778
   metrics:
     prometheus:

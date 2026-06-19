@@ -57,6 +57,35 @@ $KCL create secret generic credential \
   --from-file=kafka-server-listener-internal-plain-metrics.txt="${CREDS_DIR}/kafka-server-listener-internal-plain-metrics.txt" \
   --dry-run=client -o yaml | $KCL apply -f -
 
+# -------------------------------------------------------------------------
+# Next-gen Control Center metrics secrets (Edge runs its own C3 + bundled
+# Prometheus/Alertmanager). Server secrets hold the allowed user list; client
+# secrets hold the username/password components + C3 present. All use basic.txt.
+# -------------------------------------------------------------------------
+log "  prometheus-credentials (server)"
+$KCL create secret generic prometheus-credentials \
+  --namespace="${NS}" \
+  --from-file=basic.txt="${CREDS_DIR}/prometheus-credentials-secret.txt" \
+  --dry-run=client -o yaml | $KCL apply -f -
+
+log "  alertmanager-credentials (server)"
+$KCL create secret generic alertmanager-credentials \
+  --namespace="${NS}" \
+  --from-file=basic.txt="${CREDS_DIR}/alertmanager-credentials-secret.txt" \
+  --dry-run=client -o yaml | $KCL apply -f -
+
+log "  prometheus-client-creds (client)"
+$KCL create secret generic prometheus-client-creds \
+  --namespace="${NS}" \
+  --from-file=basic.txt="${CREDS_DIR}/prometheus-client-credentials-secret.txt" \
+  --dry-run=client -o yaml | $KCL apply -f -
+
+log "  alertmanager-client-creds (client)"
+$KCL create secret generic alertmanager-client-creds \
+  --namespace="${NS}" \
+  --from-file=basic.txt="${CREDS_DIR}/alertmanager-client-credentials-secret.txt" \
+  --dry-run=client -o yaml | $KCL apply -f -
+
 log ""
 log "=== Edge secrets created ==="
 $KCL get secrets -n "${NS}"

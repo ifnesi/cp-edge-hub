@@ -2,26 +2,22 @@ apiVersion: platform.confluent.io/v1beta1
 kind: ControlCenter
 metadata:
   name: controlcenter
-  namespace: cp-hub
+  namespace: cp-edge
 spec:
   replicas: 1
 
-  # Cluster display name shown in the C3 UI (defaults to "controlcenter.cluster").
-  name: hub.cluster
+  # Cluster display name shown in the C3 UI.
+  name: edge.cluster
 
   # -------------------------------------------------------------------------
-  # Next-generation Control Center (C3++), 2.5.0 — a separately-versioned
-  # product. It no longer uses the _confluent-metrics topic / monitoring
-  # interceptors; instead it bundles Prometheus + Alertmanager (as sidecars in
-  # this pod) and ingests metrics that each CP component publishes via its
+  # Next-generation Control Center (C3++), 2.5.0 — bundles Prometheus +
+  # Alertmanager as sidecars and ingests metrics each component publishes via
   # dependencies.metricsClient. Image tags MUST match across all three.
   # -------------------------------------------------------------------------
   image:
     application: docker.io/confluentinc/cp-enterprise-control-center-next-gen:2.5.0
     init: docker.io/confluentinc/confluent-init-container:3.2.0
 
-  # Pod-level resources cover all three containers (C3 + Prometheus + Alertmanager).
-  # Kept small so the pod fits a broker node alongside a broker + SR/Connect pod.
   dataVolumeCapacity: 50Gi
   storageClass:
     name: gp3
@@ -44,14 +40,14 @@ spec:
                   values:
                     - broker
 
-  # TLS for the C3 web UI (cert SAN *.hub.kafka.demo covers controlcenter.hub.kafka.demo).
+  # TLS for the C3 web UI (cert SAN *.edge.kafka.demo covers controlcenter.edge.kafka.demo).
   tls:
     secretRef: tls-kafka
 
   externalAccess:
     type: loadBalancer
     loadBalancer:
-      domain: hub.kafka.demo
+      domain: edge.kafka.demo
       port: 9021
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
@@ -59,7 +55,6 @@ spec:
 
   # -------------------------------------------------------------------------
   # Bundled metrics backend — Prometheus + Alertmanager (basic auth, internal).
-  # The PVCs default to the gp3 StorageClass.
   # -------------------------------------------------------------------------
   services:
     prometheus:
@@ -78,28 +73,24 @@ spec:
           secretRef: alertmanager-credentials
 
   # -------------------------------------------------------------------------
-  # Dependencies
-  #   prometheusClient / alertManagerClient — C3 reads from its own bundled
-  #     metrics services (basic auth, internal http).
-  #   kafka / schemaRegistry / connect — Hub cluster management (topics, schemas,
-  #     and the Splunk Sink connector, created later from the C3 UI).
+  # Dependencies — Edge cluster management (topics, schemas). No Connect on Edge.
   # -------------------------------------------------------------------------
   dependencies:
     prometheusClient:
-      url: http://controlcenter.cp-hub.svc.cluster.local:9090
+      url: http://controlcenter.cp-edge.svc.cluster.local:9090
       authentication:
         type: basic
         basic:
           secretRef: prometheus-client-creds
     alertManagerClient:
-      url: http://controlcenter.cp-hub.svc.cluster.local:9093
+      url: http://controlcenter.cp-edge.svc.cluster.local:9093
       authentication:
         type: basic
         basic:
           secretRef: alertmanager-client-creds
 
     kafka:
-      bootstrapEndpoint: kafka.cp-hub.svc.cluster.local:9071
+      bootstrapEndpoint: kafka.cp-edge.svc.cluster.local:9071
       authentication:
         type: plain
         jaasConfig:
@@ -108,14 +99,7 @@ spec:
         enabled: false
 
     schemaRegistry:
-      url: https://schemaregistry.cp-hub.svc.cluster.local:8081
+      url: https://schemaregistry.cp-edge.svc.cluster.local:8081
       tls:
         enabled: true
         secretRef: tls-kafka
-
-    # Kafka Connect (Splunk Sink plugin) — managed from the C3 UI.
-    connect:
-      - name: connect
-        url: http://connect.cp-hub.svc.cluster.local:8083
-        tls:
-          enabled: false

@@ -779,7 +779,7 @@ curl -k \
 | Broker replicas | 3 | 3 |
 | Schema Registry replicas | 3 | 3 |
 | Kafka Connect | - | 1 (Splunk plugin v2.2.6) |
-| Control Center | - | 1 |
+| Control Center | 1 (`edge.cluster`) | 1 (`hub.cluster`) |
 | Broker storage | 1 Ti (`gp3`) | 1 Ti (`gp3`) |
 | Broker node | `m5.xlarge` (4 vCPU / 16 GB) | `m5.xlarge` (4 vCPU / 16 GB) |
 | Broker pod CPU | req `2500m` / limit `4` | req `2500m` / limit `4` |
@@ -961,12 +961,18 @@ curl -k --cacert certs/cacerts.pem \
 | **Prometheus** | Both clusters, namespace `monitoring` | Port-forward or internal |
 | **Grafana** | Both clusters, namespace `monitoring` | NLB address (see below) |
 
-**Next-gen Control Center 2.5.0** monitors the **Hub** cluster. It bundles its
-own Prometheus + Alertmanager (sidecars in the C3 pod) and ingests metrics that
-each Hub component publishes via `dependencies.metricsClient`. It also manages
-the Hub's Kafka Connect cluster (where you create the Splunk Sink connector).
-The **Edge** cluster is observed separately via its own kube-prometheus-stack +
-Grafana (Steps 11–12).
+**Next-gen Control Center 2.5.0** is single-cluster: each C3 instance monitors
+only the one Kafka cluster it's attached to. This demo runs **two** C3 instances
+— one per cluster:
+
+- **Hub C3** (`name: hub.cluster`) — manages Hub Kafka, Schema Registry, and the
+  Kafka Connect cluster (where you create the Splunk connector).
+- **Edge C3** (`name: edge.cluster`) — manages Edge Kafka + Schema Registry.
+
+Each C3 bundles its own Prometheus + Alertmanager (sidecars) and ingests metrics
+that the cluster's components publish via `dependencies.metricsClient`. The
+`name:` field sets the cluster's display name in the C3 UI (otherwise it shows
+the default `controlcenter.cluster`).
 
 ### Step 11 - Deploy Control Center (Hub)
 
@@ -1005,6 +1011,33 @@ echo "$(dig +short "$HOST" | grep -E '^[0-9.]+$' | head -1)   controlcenter.hub.
 (`splunk.hec.uri`, `splunk.hec.token`, source topics). The plugin is already
 installed (Step 6); C3 only creates the running connector instance.
 
+### Step 11b - Deploy Control Center (Edge)
+
+The Edge cluster runs its own C3 (`name: edge.cluster`). It requires the Edge
+metrics secrets (created by `scripts/01-create-secrets-edge.sh`) and the Edge
+components' `metricsClient` dependency — both already in place if you ran Step 3
+and Step 5 with the current manifests.
+
+> **Re-running Step 3/5?** If you deployed Edge *before* these C3 additions,
+> re-run `scripts/01-create-secrets-edge.sh` (adds the 4 metrics secrets) and
+> re-apply `edge/01-kraftcontroller.yaml`, `edge/02-kafka.yaml`,
+> `edge/03-schemaregistry.yaml` (adds `metricsClient`). The operator rolls the
+> pods automatically.
+
+```bash
+kubectl --context="${EDGE_CTX}" apply -f edge/05-controlcenter.yaml
+kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w   # wait for controlcenter-0 Ready
+```
+
+Access it the same way as Hub, via its NLB:
+
+```bash
+HOST=$(kubectl --context="${EDGE_CTX}" get svc controlcenter-bootstrap-lb -n cp-edge \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "$(dig +short "$HOST" | grep -E '^[0-9.]+$' | head -1)   controlcenter.edge.kafka.demo"
+# Add to /etc/hosts, then open https://controlcenter.edge.kafka.demo:9021
+```
+
 ### Step 12 - Deploy Prometheus + Grafana
 
 ```bash
@@ -1012,7 +1045,7 @@ installed (Step 6); C3 only creates the running connector instance.
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-# Install kube-prometheus-stack on both clusters
+# Install kube-prometheus-stack on both clusters (this can take up to 20 minutes)
 EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" \
   bash monitoring/01-install-prometheus-stack.sh
 ```
@@ -1174,6 +1207,7 @@ kubectl --context="${HUB_CTX}" delete -f hub/02-kafka.yaml
 kubectl --context="${HUB_CTX}" delete -f hub/01-kraftcontroller.yaml
 
 # Edge - CP components
+kubectl --context="${EDGE_CTX}" delete -f edge/05-controlcenter.yaml
 kubectl --context="${EDGE_CTX}" delete -f edge/04-topics.yaml
 kubectl --context="${EDGE_CTX}" delete -f edge/03-schemaregistry.yaml
 kubectl --context="${EDGE_CTX}" delete -f edge/02-kafka.yaml
