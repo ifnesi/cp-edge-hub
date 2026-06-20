@@ -35,3 +35,6 @@ license.txt
 
 # JMX Monitoring Stacks
 jmx-monitoring-stacks/
+
+# SIEM Emulator
+demo/siem-emulator/

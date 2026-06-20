@@ -137,6 +137,9 @@ spec:
     log4j:
       - log4j.rootLogger=INFO, stdout
 
+  # JMX Prometheus exporter on port 7778 — transformation rules below.
+  # Scraped by kube-prometheus-stack via PodMonitor (monitoring/02-podmonitors.yaml)
+  # → Grafana. Does not feed C3 (C3 uses the metricsClient OTLP push path).
   metrics:
     prometheus:
       blacklist:

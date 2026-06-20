@@ -160,8 +160,12 @@ spec:
       - log4j.rootLogger=INFO, stdout
 
   # -------------------------------------------------------------------------
-  # Metrics — enables JMX Prometheus exporter on port 7778 per broker pod.
-  # Scraped by Prometheus via PodMonitor (see monitoring/02-podmonitors.yaml).
+  # Metrics — enables the JMX Prometheus exporter on port 7778 per broker pod.
+  # The blacklist/rules below shape what that exporter emits. Two consumers:
+  #   • kube-prometheus-stack scrapes it via PodMonitor (monitoring/02-podmonitors.yaml)
+  #     → feeds the CfK Grafana dashboards.
+  #   • NOT C3 — next-gen C3 ingests metrics pushed via dependencies.metricsClient
+  #     (Telemetry Reporter OTLP path, port 9090), independent of this exporter.
   # -------------------------------------------------------------------------
   metrics:
     prometheus:
@@ -539,9 +543,8 @@ spec:
         - pattern: "kafka.tier.tasks<type=TierTasks, name=(.+)><>(.+):(.+)"
           name: kafka_tier_tasks_tiertasks_$1
           type: GAUGE
-  # Note: no metricReporter — next-gen Control Center (2.x) collects metrics via
-  # Prometheus, not the legacy _confluent-metrics topic. Edge has no C3, so it is
-  # observed through its own kube-prometheus-stack + Grafana (see Monitoring).
+  # global: false disables the Health+ phone-home path (metrics to Confluent Cloud).
+  # C3 metrics flow via dependencies.metricsClient → bundled Prometheus, not Health+.
   telemetry:
     global: false
 

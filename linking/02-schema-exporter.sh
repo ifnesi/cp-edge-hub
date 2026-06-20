@@ -81,7 +81,7 @@ PAYLOAD=$(cat <<EOF
 {
   "name": "${EXPORTER_NAME}",
   "contextType": "CUSTOM",
-  "context": "hub",
+  "context": "edge",
   "subjects": ${SUBJECTS_JSON},
   "subjectRenameFormat": "\${subject}",
   "config": {

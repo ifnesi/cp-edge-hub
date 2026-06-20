@@ -14,14 +14,6 @@ Schema Linking replicating data from Edge to Hub.
 | C3 bundled Prometheus / Alertmanager | **2.5.0** | `cp-enterprise-prometheus` / `cp-enterprise-alertmanager:2.5.0` |
 | Splunk connector | **2.2.6** | `splunk/kafka-connect-splunk` installed into Connect from Confluent Hub |
 
-> **Why CP 8.2:** Confluent's
-> [Supported Versions & Interoperability](https://docs.confluent.io/platform/current/installation/versions-interoperability.html)
-> matrix lists **Control Center 2.5.x with CP through 8.2.x**, so CP **8.2.1** is
-> the build that pairs cleanly with C3 **2.5.0** - no version mismatch. `8.2.1`
-> is the current 8.2 patch; bump if a newer 8.2.x ships. The three
-> `cp-enterprise-control-center-next-gen` / `-prometheus` / `-alertmanager` tags
-> must always match each other. CfK **3.2.x** supports the CP 8.2 line.
-
 ```
 EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
 ┌───────────────────────────────────────┐   ┌─────────────────────────────────────────────┐
@@ -30,7 +22,7 @@ EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
 │ Broker nodes (m5.xlarge ×3)           │   │ Broker nodes (m5.xlarge ×3)                 │
 │   ├─▶3× Kafka broker (1 TB gp3 each)  │   │   ├─▶3× Kafka broker (1 TB gp3 each)        │
 │   │     + embedded REST Proxy (8090)  │   │   │     + embedded REST Proxy (8090)        │
-│   └─▶3× Schema Registry (8081, HTTPS) │   │   ├─▶3× Schema Registry (8081, HTTPS)       │
+│   └─▶2× Schema Registry (8081, HTTPS) │   │   ├─▶2× Schema Registry (8081, HTTPS)       │
 │   └─▶1× Control Center (edge.cluster) │   │   ├─▶1× Kafka Connect (8083)                │
 │                                       │   │   │    └─▶Splunk plugin v2.2.6              │
 │                                       │   │   └─▶1× Control Center (hub.cluster, 9021)  │
@@ -272,19 +264,6 @@ inbound ports. Auth is your local AWS CLI credentials (`AWS_PROFILE=cp-poc`).
 > `ec2messages.*`). SSM connects inbound through AWS's control plane — no
 > inbound security-group rule is needed on the instance.
 
-**Copy files to the host** (e.g., producer scripts and the CA cert):
-
-```bash
-# requires the SSM plugin; replaces scp
-aws ssm start-session \
-  --target "$INSTANCE_ID" \
-  --region "$REGION" \
-  --document-name AWS-StartSSHSession \
-  --parameters portNumber=22
-# — or use S3 as a staging area —
-aws s3 cp certs/cacerts.pem s3://<your-bucket>/cacerts.pem
-# then inside the SSM session: aws s3 cp s3://<your-bucket>/cacerts.pem .
-```
 
 ---
 
@@ -541,7 +520,7 @@ kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
 # Schema Registry
 kubectl --context="${EDGE_CTX}" apply -f edge/03-schemaregistry.yaml
 
-# Wait for all 3 schema registry pods to be Running
+# Wait for all 2 schema registry pods to be Running
 kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
 
 # Topics (21 SIEM topics - created via KafkaRestClass once brokers are ready)
@@ -566,7 +545,6 @@ kafka-1                       1/1     Running   0
 kafka-2                       1/1     Running   0
 schemaregistry-0              1/1     Running   0
 schemaregistry-1              1/1     Running   0
-schemaregistry-2              1/1     Running   0
 ```
 
 ---
@@ -775,7 +753,7 @@ curl -k \
 | Namespace | `cp-edge` | `cp-hub` |
 | KRaft replicas | 3 | 3 |
 | Broker replicas | 3 | 3 |
-| Schema Registry replicas | 3 | 3 |
+| Schema Registry replicas | 2 | 2 |
 | Kafka Connect | - | 1 (Splunk plugin v2.2.6) |
 | Control Center | 1 (`edge.cluster`) | 1 (`hub.cluster`) |
 | Broker storage | 1 Ti (`gp3`) | 1 Ti (`gp3`) |
@@ -964,8 +942,10 @@ This demo has **two** monitoring layers, by design:
   instance monitors only the Kafka cluster it's attached to, so there are two:
   **`hub.cluster`** (also manages Connect / the Splunk connector) and
   **`edge.cluster`**. Each bundles its own Prometheus + Alertmanager and ingests
-  metrics via `dependencies.metricsClient`. The `name:` field is the C3 display
-  name (otherwise it shows the default `controlcenter.cluster`).
+  metrics via `dependencies.metricsClient`. The `name:` field sets the C3 instance
+  identity (internal-topic prefix), not the Kafka cluster display name. The display
+  name is set via `configOverrides.server: confluent.controlcenter.kafka.<Name>.bootstrap.servers`
+  (dot-free token — `Edge` renders as "Edge" in the UI).
 - **Grafana (single pane).** A `kube-prometheus-stack` runs on each cluster, but
   only **Hub** keeps a Grafana. Edge's Prometheus **remote-writes** to Hub's, so
   one Grafana covers both clusters — switch with the dashboard `Namespace`
@@ -1146,6 +1126,66 @@ Edit `linking/01-clusterlink.yaml`, add entries to the `mirrorTopics:` list, the
 ```bash
 kubectl --context="${HUB_CTX}" apply -f linking/01-clusterlink.yaml
 ```
+
+---
+
+### Step 14 — Deploy the SIEM producers and streaming apps on the Edge EC2
+
+#### Access the EC2 instance
+
+```bash
+# Copy the exact command from terraform output, or:
+INSTANCE_ID=$(terraform output -raw producer_host_instance_id)
+REGION=$(terraform output -raw aws_region)
+aws ssm start-session --target "$INSTANCE_ID" --region "$REGION"
+```
+
+You get a bash shell running as `ssm-user`. No key pair, no public IP, no open
+inbound ports. Auth is your local AWS CLI credentials (`AWS_PROFILE=cp-poc`).
+
+> **Why this works:** The instance is in the private subnet. The NAT Gateway
+> gives it outbound HTTPS to reach the SSM endpoints (`ssm.*`, `ssmmessages.*`,
+> `ec2messages.*`). SSM connects inbound through AWS's control plane — no
+> inbound security-group rule is needed on the instance.
+
+
+#### Deploy the services
+
+Once on the instance, follow **[demo/README.md](demo/README.md)** to clone the SIEM emulator repo, install the Python virtual environment, and register all producers and streaming applications as persistent systemd services that target the Edge cluster.
+
+---
+
+## Demo — Simulating a Network Failure (Cluster Link pause/resume)
+
+Use `linking/03-clusterlink-ctl.sh` to pause and resume the `edge-to-hub` Cluster
+Link from your Mac. This simulates a network outage between Edge and Hub:
+
+- **During pause:** the 21 mirror topics on Hub stop replicating. Consumer lag
+  accumulates on Edge while the Python producers keep writing — demonstrating
+  that Edge operates fully independently.
+- **After resume:** replication restarts automatically from the last committed
+  offset. Watch the lag drain to zero — no data is lost.
+
+```bash
+# Check current link and mirror topic state
+bash linking/03-clusterlink-ctl.sh status
+
+# Simulate network failure — pause the entire link
+bash linking/03-clusterlink-ctl.sh pause
+
+# ... show Edge producers still writing, lag growing in C3 or Grafana ...
+
+# Restore the link — replication catches up automatically
+bash linking/03-clusterlink-ctl.sh resume
+```
+
+The `status` output prints a table of mirror topic name / state / accumulated lag.
+The `resume` command prints the same table immediately after resuming — refresh it
+after ~30 seconds to see lag draining.
+
+> The script uses the Kafka REST Proxy v3 Admin API on Hub
+> (`https://kafka.hub.kafka.demo:8090`). Make sure the Hub REST proxy NLB is in
+> `/etc/hosts` (Step 7) before running it from your Mac.
 
 ---
 

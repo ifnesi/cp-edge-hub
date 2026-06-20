@@ -6,8 +6,18 @@ metadata:
 spec:
   replicas: 1
 
-  # Cluster display name shown in the C3 UI.
+  # Instance identity — used as the internal-topic prefix (_confluent-controlcenter_<name>),
+  # NOT the Kafka cluster display name in the UI.
   name: edge.cluster
+
+  # -------------------------------------------------------------------------
+  # Kafka cluster display name in the C3 UI — the <name> token (dot-free) in
+  # the property key becomes the tile label. Must match bootstrapEndpoint in
+  # dependencies.kafka so C3 renames the existing cluster, not add a second tile.
+  # -------------------------------------------------------------------------
+  configOverrides:
+    server:
+      - confluent.controlcenter.kafka.Edge.bootstrap.servers=kafka.cp-edge.svc.cluster.local:9071
 
   # -------------------------------------------------------------------------
   # Next-generation Control Center (C3++), 2.5.0 — bundles Prometheus +

@@ -1,0 +1,196 @@
+# SIEM Emulator - Linux Service Setup (EC2)
+
+This guide explains how to run the SIEM emulator components as persistent
+**systemd** services on an Amazon Linux 2 / Amazon Linux 2023 EC2 instance so
+that each process starts on boot and restarts automatically on failure.
+
+---
+
+## Prerequisites
+
+```bash
+# Clone the repo (adjust the URL to yours)
+cd demo
+git clone git@github.com:ifnesi/siem-emulator.git
+cd siem-emulator
+
+# Create the virtual environment and install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+deactivate
+```
+
+> The setup script auto-detects `REPO_DIR` as `demo/siem-emulator/` (relative to
+> this repo). Override with `--repo-dir` if you clone the emulator elsewhere.
+
+---
+
+## Services
+
+| Service name | Script | Working dir |
+|---|---|---|
+| `siem-producer-windows` | `siem_producer.py windows_event_log` | `REPO_DIR/` |
+| `siem-producer-fortigate` | `siem_producer.py fortigate_log` | `REPO_DIR/` |
+| `siem-producer-paloalto` | `siem_producer.py paloalto_log` | `REPO_DIR/` |
+| `siem-producer-dns` | `siem_producer.py dns_log` | `REPO_DIR/` |
+| `siem-fortigate-streaming` | `demo/fortigate_streaming_app.py` | `REPO_DIR/demo/` |
+| `siem-paloalto-streaming` | `demo/paloalto_streaming_app.py` | `REPO_DIR/demo/` |
+| `siem-dns-streaming` | `demo/dns_streaming_app.py` | `REPO_DIR/demo/` |
+
+All services use `Restart=on-failure` with a 10-second back-off so a transient
+broker outage or crash does not spin-loop the process.
+
+---
+
+## Quick start
+
+Run everything from the `demo/` folder of this repo:
+
+```bash
+cd cp-edge-hub/demo
+
+# 1. Create and enable all service units
+sudo bash setup_services.sh
+
+# 2. Start every service and watch their status
+bash services_ctl.sh start
+bash services_ctl.sh status
+```
+
+---
+
+## Day-2 operations
+
+```bash
+# From demo/
+
+# Start / stop / restart all at once
+bash services_ctl.sh start
+bash services_ctl.sh stop
+bash services_ctl.sh restart
+
+# Status summary of all services
+bash services_ctl.sh status
+
+# Follow logs for a specific service via journald
+journalctl -u siem-producer-dns -f
+
+# Follow logs via the on-disk log file (after logging setup - see below)
+tail -f /var/log/siem/producer-dns.log
+
+# Reload a unit file after editing it
+sudo systemctl daemon-reload
+sudo systemctl restart siem-producer-dns
+```
+
+---
+
+## Disk logging (daily rotation, 30-day retention)
+
+All services write to the console, which systemd captures via **journald**. To
+also write logs to disk (one file per service, rotated daily, kept for 30 days)
+run the logging setup script - **no Python code changes required**. It works by
+reading the `SyslogIdentifier` field that each `.service` unit already sets and
+forwarding matching entries from journald to per-service files via rsyslog.
+
+```bash
+# From demo/
+sudo bash setup_logging.sh
+```
+
+What the script does:
+
+1. **Enables persistent journald storage** so logs survive reboots and remain
+   queryable with `journalctl` even without rsyslog.
+2. **Configures rsyslog** to route each service's output to its own file under
+   `/var/log/siem/`.
+3. **Installs a logrotate rule** that rotates files daily, compresses rotated
+   files (`.gz`), and deletes files older than 30 days.
+
+### Log files
+
+| Service | Log file |
+|---|---|
+| `siem-producer-windows` | `/var/log/siem/producer-windows.log` |
+| `siem-producer-fortigate` | `/var/log/siem/producer-fortigate.log` |
+| `siem-producer-paloalto` | `/var/log/siem/producer-paloalto.log` |
+| `siem-producer-dns` | `/var/log/siem/producer-dns.log` |
+| `siem-fortigate-streaming` | `/var/log/siem/streaming-fortigate.log` |
+| `siem-paloalto-streaming` | `/var/log/siem/streaming-paloalto.log` |
+| `siem-dns-streaming` | `/var/log/siem/streaming-dns.log` |
+
+### Useful log commands
+
+```bash
+# Real-time tail of a single service log file
+tail -f /var/log/siem/streaming-dns.log
+
+# Historical query via journald (works with or without disk logging)
+journalctl -u siem-dns-streaming --since yesterday
+journalctl -u siem-dns-streaming --since "2h ago"
+
+# Test logrotate config (dry-run)
+sudo logrotate --debug /etc/logrotate.d/siem
+```
+
+---
+
+## Manual commands (reference)
+
+These are the exact commands each service wraps.
+
+### Producers (run from `demo/siem-emulator/`)
+
+```bash
+# Windows Event Log producer
+python siem_producer.py windows_event_log \
+  -t siem_poc_windows_eventlog_logs -f 0.1 -b 20 -p 1 \
+  --kafka-config ../../config/kafka_edge.properties \
+  --registry-config ../../config/registry_edge.properties
+
+# FortiGate producer
+python siem_producer.py fortigate_log \
+  -t siem_poc_fortigate_logs -f 0.1 -b 20 -p 1 --no-schema \
+  --kafka-config ../../config/kafka_edge.properties \
+  --registry-config ../../config/registry_edge.properties
+
+# Palo Alto producer
+python siem_producer.py paloalto_log \
+  -t siem_poc_paloalto_logs -f 0.1 -b 20 -p 1 --no-schema \
+  --kafka-config ../../config/kafka_edge.properties \
+  --registry-config ../../config/registry_edge.properties
+
+# DNS producer
+python siem_producer.py dns_log \
+  -t siem_poc_dns_logs -f 0.1 -b 20 -p 1 -k src_ip \
+  --kafka-config ../../config/kafka_edge.properties \
+  --registry-config ../../config/registry_edge.properties
+```
+
+### Streaming apps (run from `demo/siem-emulator/demo/`)
+
+```bash
+# FortiGate streaming app
+python fortigate_streaming_app.py \
+  --kafka-config ../../../config/kafka_edge.properties \
+  --registry-config ../../../config/registry_edge.properties \
+  --schema-dir ./schemas/ \
+  --source-topic siem_poc_fortigate_logs
+
+# Palo Alto streaming app
+python paloalto_streaming_app.py \
+  --kafka-config ../../../config/kafka_edge.properties \
+  --registry-config ../../../config/registry_edge.properties \
+  --schema-dir ./schemas/ \
+  --source-topic siem_poc_paloalto_logs
+
+# DNS streaming app
+python dns_streaming_app.py \
+  --kafka-config ../../../config/kafka_edge.properties \
+  --registry-config ../../../config/registry_edge.properties \
+  --schema-dir ./schemas/ \
+  --source-topic siem_poc_dns_logs \
+  --window-seconds 300
+```

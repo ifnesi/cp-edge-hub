@@ -4,7 +4,7 @@ metadata:
   name: schemaregistry
   namespace: cp-edge
 spec:
-  replicas: 3
+  replicas: 2
 
   image:
     application: docker.io/confluentinc/cp-schema-registry:8.2.1
