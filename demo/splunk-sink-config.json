@@ -4,35 +4,35 @@
     "connector.class": "com.splunk.kafka.connect.SplunkSinkConnector",
     "tasks.max": "1",
 
-    "topics.regex": "siem_poc.*",
+    "topics": "siem_poc_dns_logs-aggregate,siem_poc_fortigate_logs-event-system,siem_poc_fortigate_logs-event-user,siem_poc_fortigate_logs-event-vpn,siem_poc_fortigate_logs-traffic-forward,siem_poc_fortigate_logs-traffic-local,siem_poc_fortigate_logs-utm-dns,siem_poc_fortigate_logs-utm-ips,siem_poc_fortigate_logs-utm-virus,siem_poc_fortigate_logs-utm-webfilter,siem_poc_paloalto_logs-auth-auth,siem_poc_paloalto_logs-globalprotect-globalprotect,siem_poc_paloalto_logs-system-general,siem_poc_paloalto_logs-threat-spyware,siem_poc_paloalto_logs-threat-url,siem_poc_paloalto_logs-threat-virus,siem_poc_paloalto_logs-threat-vulnerability,siem_poc_paloalto_logs-traffic-deny,siem_poc_paloalto_logs-traffic-end,siem_poc_paloalto_logs-traffic-start,siem_poc_windows_eventlog_logs",
 
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "io.confluent.connect.avro.AvroConverter",
-    "value.converter.schema.registry.url": "https://schemaregistry.hub.kafka.demo:8081",
+    "value.converter.schema.registry.url": "https://schemaregistry.cp-hub.svc.cluster.local:8081",
     "value.converter.basic.auth.credentials.source": "USER_INFO",
     "value.converter.basic.auth.user.info": "admin:admin-secret",
     "value.converter.schema.registry.ssl.truststore.location": "/home/appuser/certs/cacerts.pem",
     "value.converter.schema.registry.ssl.truststore.type": "PEM",
-    
-    "confluent.topic.bootstrap.servers": "hub.kafka.demo:9092",
-    "confluent.topic.replication.factor": "3",
-    "confluent.topic.security.protocol": "SASL_SSL",
-    "confluent.topic.sasl.mechanism": "PLAIN",
-    "confluent.topic.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"client\" password=\"client-secret\";",
-    "confluent.topic.ssl.truststore.location": "/home/appuser/certs/cacerts.pem",
-    "confluent.topic.ssl.truststore.type": "PEM",
 
-    "consumer.override.security.protocol": "SASL_SSL",
+    "confluent.topic.bootstrap.servers": "kafka.cp-hub.svc.cluster.local:9071",
+    "confluent.topic.replication.factor": "3",
+    "confluent.topic.security.protocol": "SASL_PLAINTEXT",
+    "confluent.topic.sasl.mechanism": "PLAIN",
+    "confluent.topic.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"kafka\" password=\"kafka-secret\";",
+
+    "consumer.override.security.protocol": "SASL_PLAINTEXT",
     "consumer.override.sasl.mechanism": "PLAIN",
-    "consumer.override.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"client\" password=\"client-secret\";",
-    "consumer.override.ssl.truststore.location": "/home/appuser/certs/cacerts.pem",
-    "consumer.override.ssl.truststore.type": "PEM",
+    "consumer.override.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"kafka\" password=\"kafka-secret\";",
+
+    "value.converter.schema.registry.ssl.endpoint.identification.algorithm": "",
 
     "splunk.hec.uri": "<PLACEHOLDER_HEC_URI>",
     "splunk.hec.token": "<PLACEHOLDER_HEC_TOKEN>",
-    "splunk.indexes": "siem_poc",
     "splunk.hec.raw": "false",
     "splunk.hec.ssl.validate.certs": "false",
-    "splunk.hec.ack.enabled": "false"
+    "splunk.hec.ack.enabled": "false",
+
+    "splunk.indexes": "netdns,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,netfw,oswin",
+    "splunk.sourcetypes": "siem_poc_dns_logs-aggregate,siem_poc_fortigate_logs-event-system,siem_poc_fortigate_logs-event-user,siem_poc_fortigate_logs-event-vpn,siem_poc_fortigate_logs-traffic-forward,siem_poc_fortigate_logs-traffic-local,siem_poc_fortigate_logs-utm-dns,siem_poc_fortigate_logs-utm-ips,siem_poc_fortigate_logs-utm-virus,siem_poc_fortigate_logs-utm-webfilter,siem_poc_paloalto_logs-auth-auth,siem_poc_paloalto_logs-globalprotect-globalprotect,siem_poc_paloalto_logs-system-general,siem_poc_paloalto_logs-threat-spyware,siem_poc_paloalto_logs-threat-url,siem_poc_paloalto_logs-threat-virus,siem_poc_paloalto_logs-threat-vulnerability,siem_poc_paloalto_logs-traffic-deny,siem_poc_paloalto_logs-traffic-end,siem_poc_paloalto_logs-traffic-start,siem_poc_windows_eventlog_logs"
   }
 }
