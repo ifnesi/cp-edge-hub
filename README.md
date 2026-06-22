@@ -784,6 +784,53 @@ curl -k \
 
 ---
 
+## Checking Broker Disk Usage
+
+The broker data volume is an EBS gp3 disk mounted inside the pod. The mount point
+is **not** `/mnt/data` (that's the parent) — discover it dynamically:
+
+```bash
+# Discover the EBS mount point on one broker
+kubectl --context="${HUB_CTX}" exec kafka-0 -n cp-hub -- df -h \
+  | grep -v overlay | grep -v tmpfs | grep -v shm | grep -v hosts
+```
+
+Once you know the path (typically `/mnt/data/data0`), check all brokers on both clusters:
+
+```bash
+# Hub
+for i in 0 1 2; do
+  echo "=== hub kafka-$i ==="
+  kubectl --context="${HUB_CTX}" exec kafka-$i -n cp-hub -- \
+    df -h $(kubectl --context="${HUB_CTX}" exec kafka-$i -n cp-hub -- \
+      df | awk '/\/mnt\/data/ {print $6}' | head -1)
+done
+
+# Edge
+for i in 0 1 2; do
+  echo "=== edge kafka-$i ==="
+  kubectl --context="${EDGE_CTX}" exec kafka-$i -n cp-edge -- \
+    df -h $(kubectl --context="${EDGE_CTX}" exec kafka-$i -n cp-edge -- \
+      df | awk '/\/mnt\/data/ {print $6}' | head -1)
+done
+```
+
+Or as a one-liner across both clusters:
+
+```bash
+for CTX_NS in "${HUB_CTX}:cp-hub" "${EDGE_CTX}:cp-edge"; do
+  CTX="${CTX_NS%%:*}"; NS="${CTX_NS##*:}"
+  for i in 0 1 2; do
+    MP=$(kubectl --context="${CTX}" exec kafka-$i -n "${NS}" -- \
+      df | awk '/\/mnt\/data/ {print $6}' | head -1)
+    echo "=== ${CTX} kafka-$i (${MP}) ==="
+    kubectl --context="${CTX}" exec kafka-$i -n "${NS}" -- df -h "${MP}"
+  done
+done
+```
+
+---
+
 ## Architecture Details
 
 ### Cluster topology
