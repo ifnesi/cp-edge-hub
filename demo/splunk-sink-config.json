@@ -1,0 +1,38 @@
+{
+  "name": "siem-poc-splunk-sink",
+  "config": {
+    "connector.class": "com.splunk.kafka.connect.SplunkSinkConnector",
+    "tasks.max": "1",
+
+    "topics.regex": "siem_poc.*",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "https://schemaregistry.hub.kafka.demo:8081",
+    "value.converter.basic.auth.credentials.source": "USER_INFO",
+    "value.converter.basic.auth.user.info": "admin:admin-secret",
+    "value.converter.schema.registry.ssl.truststore.location": "certs/cacerts.pem",
+    "value.converter.schema.registry.ssl.truststore.type": "PEM",
+    
+    "confluent.topic.bootstrap.servers": "hub.kafka.demo:9092",
+    "confluent.topic.replication.factor": "3",
+    "confluent.topic.security.protocol": "SASL_SSL",
+    "confluent.topic.sasl.mechanism": "PLAIN",
+    "confluent.topic.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"client\" password=\"client-secret\";",
+    "confluent.topic.ssl.truststore.location": "certs/cacerts.pem",
+    "confluent.topic.ssl.truststore.type": "PEM",
+
+    "consumer.override.security.protocol": "SASL_SSL",
+    "consumer.override.sasl.mechanism": "PLAIN",
+    "consumer.override.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"client\" password=\"client-secret\";",
+    "consumer.override.ssl.truststore.location": "certs/cacerts.pem",
+    "consumer.override.ssl.truststore.type": "PEM",
+
+    "splunk.hec.uri": "<PLACEHOLDER_HEC_URI>",
+    "splunk.hec.token": "<PLACEHOLDER_HEC_TOKEN>",
+    "splunk.indexes": "siem_poc",
+    "splunk.hec.raw": "false",
+    "splunk.hec.ssl.validate.certs": "false",
+    "splunk.hec.ack.enabled": "false"
+  }
+}

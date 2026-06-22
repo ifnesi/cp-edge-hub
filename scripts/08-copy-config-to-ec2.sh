@@ -117,6 +117,7 @@ do
 done
 ssm_run "chmod +x ${REMOTE_HOME}/*.sh"
 
+
 # Patch all relative cert paths to absolute so configs work from any working directory.
 log "Patching cert paths to absolute in configs..."
 ssm_run "sed -i 's|ssl\.ca\.location=.*|ssl.ca.location=${REMOTE_CERTS_DIR}/cacerts.pem|g' ${REMOTE_KAFKA_DIR}/*.properties"
@@ -175,4 +176,5 @@ log "SUCCESS"
 log "  ${REMOTE_CERTS_DIR}/cacerts.pem"
 log "  ${REMOTE_KAFKA_DIR}/*.properties"
 log "  ${REMOTE_HOME}/*.sh  (executable)"
+
 log "  /etc/hosts updated with fresh NLB IPs"

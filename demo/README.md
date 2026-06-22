@@ -196,6 +196,84 @@ sudo logrotate --debug /etc/logrotate.d/siem
 
 ---
 
+## Deploy the Splunk Sink Connector
+
+The Splunk HTTP Event Collector (HEC) connector reads all `siem_poc.*` topics from Hub
+and forwards events to Splunk. Run these commands from the **repo root on your Mac**.
+
+### Step 1 — Copy the CA cert into the Connect pod
+
+The connector needs to verify Hub's Schema Registry TLS certificate.
+
+```bash
+kubectl --context=hub exec -n cp-hub connect-0 -- mkdir -p /home/appuser/certs
+base64 < certs/cacerts.pem | \
+  kubectl --context=hub exec -i -n cp-hub connect-0 -- \
+    sh -c 'base64 -d > /home/appuser/certs/cacerts.pem'
+```
+
+> `kubectl cp` requires `tar` in the container image; the Connect image does not include it,
+> so we pipe the cert as base64 instead.
+
+### Step 2 — Deploy the connector
+
+Run from your **Mac** (requires `jq` and `kubectl` with the hub context).
+Substitute all `certs/cacerts.pem` references with the in-pod absolute path, then POST
+the config to the Connect REST API from inside the pod:
+
+```bash
+HEC_TOKEN="<your-hec-token>"
+HEC_URI="https://<your-splunk-host>:8088"
+SPLUNK_INDEX="siem_poc"   # must exist and be writable by the HEC token
+
+jq --arg token "$HEC_TOKEN" \
+   --arg uri   "$HEC_URI" \
+   --arg index "$SPLUNK_INDEX" \
+   --arg cert  "/home/appuser/certs/cacerts.pem" \
+   '
+   .config["splunk.hec.token"]                                           = $token |
+   .config["splunk.hec.uri"]                                             = $uri   |
+   .config["splunk.indexes"]                                             = $index |
+   .config["value.converter.schema.registry.ssl.truststore.location"]    = $cert  |
+   .config["consumer.override.ssl.truststore.location"]                  = $cert  |
+   .config["confluent.topic.ssl.truststore.location"]                    = $cert
+   ' demo/splunk-sink-config.json \
+| kubectl --context=hub exec -i -n cp-hub connect-0 -- \
+    curl -s -X POST http://localhost:8083/connectors \
+         -H "Content-Type: application/json" \
+         -d @-
+```
+
+### Step 3 — Verify
+
+```bash
+# List connectors
+kubectl --context=hub exec -n cp-hub connect-0 -- \
+  curl -s http://localhost:8083/connectors | jq
+
+# Check connector status
+kubectl --context=hub exec -n cp-hub connect-0 -- \
+  curl -s http://localhost:8083/connectors/siem-poc-splunk-sink/status | jq
+```
+
+The connector's egress IP (visible to Splunk's HEC allowlist) is the NAT Gateway public IP.
+Retrieve it with:
+
+```bash
+cd terraform && terraform output nat_gateway_public_ip
+```
+
+### Delete the connector
+
+To remove the connector (e.g. before redeploying with updated config):
+
+```bash
+kubectl --context=hub exec -n cp-hub connect-0 -- \
+  curl -s -X DELETE http://localhost:8083/connectors/siem-poc-splunk-sink
+```
+
+---
+
 ## Manual commands (reference)
 
 These are the exact commands each service wraps.
