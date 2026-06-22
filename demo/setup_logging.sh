@@ -39,25 +39,46 @@ systemd-tmpfiles --create --prefix /var/log/journal
 systemctl restart systemd-journald
 echo "  Done."
 
-# ── Step 2: rsyslog per-service routing ───────────────────────────────────────
-echo "==> Configuring rsyslog routing to ${LOG_DIR}..."
+# ── Step 2: per-service log files via journald forwarder units ────────────────
+# Amazon Linux 2023 ships without rsyslog. We create a lightweight systemd
+# "journal-tail" service for each SIEM unit that pipes journalctl output to a
+# plain log file — no rsyslog required.
+echo "==> Creating journald log-forwarder units to ${LOG_DIR}..."
 mkdir -p "${LOG_DIR}"
 
-cat > /etc/rsyslog.d/50-siem.conf <<EOF
-# SIEM emulator — route each service to its own log file.
-# Matched on SyslogIdentifier (= programname in rsyslog) set in each .service unit.
-:programname, isequal, "siem-producer-windows"    ${LOG_DIR}/producer-windows.log
-:programname, isequal, "siem-producer-fortigate"  ${LOG_DIR}/producer-fortigate.log
-:programname, isequal, "siem-producer-paloalto"   ${LOG_DIR}/producer-paloalto.log
-:programname, isequal, "siem-producer-dns"        ${LOG_DIR}/producer-dns.log
-:programname, isequal, "siem-fortigate-streaming" ${LOG_DIR}/streaming-fortigate.log
-:programname, isequal, "siem-paloalto-streaming"  ${LOG_DIR}/streaming-paloalto.log
-:programname, isequal, "siem-dns-streaming"       ${LOG_DIR}/streaming-dns.log
-EOF
+declare -A UNITS=(
+  [siem-producer-windows]="producer-windows.log"
+  [siem-producer-fortigate]="producer-fortigate.log"
+  [siem-producer-paloalto]="producer-paloalto.log"
+  [siem-producer-dns]="producer-dns.log"
+  [siem-fortigate-streaming]="streaming-fortigate.log"
+  [siem-paloalto-streaming]="streaming-paloalto.log"
+  [siem-dns-streaming]="streaming-dns.log"
+)
 
-systemctl restart rsyslog
-echo "  Created /etc/rsyslog.d/50-siem.conf"
-echo "  Restarted rsyslog."
+for svc in "${!UNITS[@]}"; do
+  logfile="${LOG_DIR}/${UNITS[$svc]}"
+  forwarder="siem-log-${svc#siem-}"   # e.g. siem-log-producer-windows
+  cat > "/etc/systemd/system/${forwarder}.service" <<EOF
+[Unit]
+Description=Journal forwarder for ${svc}
+After=${svc}.service
+BindsTo=${svc}.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'journalctl -u ${svc} -f --output=short-iso >> ${logfile}'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl enable --now "${forwarder}" > /dev/null 2>&1
+  echo "  ${forwarder} → ${logfile}"
+done
+
+systemctl daemon-reload
 
 # ── Step 3: logrotate rule ────────────────────────────────────────────────────
 echo "==> Installing logrotate rule (daily, ${RETAIN_DAYS} days)..."
@@ -70,17 +91,13 @@ ${LOG_DIR}/*.log {
     delaycompress
     missingok
     notifempty
-    create 0640 root adm
+    create 0640 root root
     sharedscripts
-    postrotate
-        systemctl kill -s HUP rsyslog 2>/dev/null || true
-    endscript
 }
 EOF
 
 echo "  Created /etc/logrotate.d/siem"
 
-# Dry-run to verify the config is valid
 logrotate --debug /etc/logrotate.d/siem > /dev/null 2>&1 \
   && echo "  logrotate config OK." \
   || echo "  WARNING: logrotate --debug returned an error — review /etc/logrotate.d/siem"

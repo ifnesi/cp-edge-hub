@@ -8,14 +8,26 @@ that each process starts on boot and restarts automatically on failure.
 
 ## Prerequisites
 
+First, connect to the EC2 instance via SSM (run this from your Mac, repo root):
+
 ```bash
-# Clone the repo (adjust the URL to yours)
-cd demo
-git clone git@github.com:ifnesi/siem-emulator.git
+INSTANCE_ID=$(cd terraform && terraform output -raw producer_host_instance_id)
+REGION=$(cd terraform && terraform output -raw aws_region)
+aws ssm start-session --target "$INSTANCE_ID" --region "$REGION"
+```
+
+Once you have a shell on the instance, clone the repo and set up the environment:
+
+```bash
+# Go to the user home folder
+cd ~
+# Clone the repo
+git clone https://github.com/ifnesi/siem-emulator.git
 cd siem-emulator
 
 # Create the virtual environment and install dependencies
-python3 -m venv .venv
+sudo dnf install -y python3.12
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -24,6 +36,35 @@ deactivate
 
 > The setup script auto-detects `REPO_DIR` as `demo/siem-emulator/` (relative to
 > this repo). Override with `--repo-dir` if you clone the emulator elsewhere.
+
+**Exit the EC2 session**, then run the following from your Mac (repo root) to
+copy the Kafka client config files and demo scripts to the instance:
+
+> **IAM requirement:** this script uses `ssm:SendCommand` — make sure your IAM
+> user has that action in its inline policy (see **IAM Permissions** in the main
+> README).
+
+```bash
+bash scripts/08-copy-config-to-ec2.sh
+```
+
+**Reconnect to the EC2:**
+
+```bash
+INSTANCE_ID=$(cd terraform && terraform output -raw producer_host_instance_id)
+REGION=$(cd terraform && terraform output -raw aws_region)
+aws ssm start-session --target "$INSTANCE_ID" --region "$REGION"
+```
+
+**Verify the files are in place and make the scripts executable:**
+
+```bash
+ls -l ~/siem-emulator/certs/       # cacerts.pem
+ls -l ~/siem-emulator/kafka/       # kafka_edge/hub + registry_edge/hub .properties
+sudo chmod +x ~/siem-emulator/*.sh
+ls -l ~/siem-emulator/*.sh         # services_ctl.sh  setup_logging.sh  setup_services.sh
+cat /etc/hosts
+```
 
 ---
 
@@ -46,16 +87,16 @@ broker outage or crash does not spin-loop the process.
 
 ## Quick start
 
-Run everything from the `demo/` folder of this repo:
+Run everything from the `~/siem-emulator` folder on the EC2:
 
 ```bash
-cd cp-edge-hub/demo
+cd ~/siem-emulator
 
 # 1. Create and enable all service units
-sudo bash setup_services.sh
+sudo bash setup_services.sh --user ssm-user
 
 # 2. Start every service and watch their status
-bash services_ctl.sh start
+sudo bash services_ctl.sh start
 bash services_ctl.sh status
 ```
 
@@ -67,18 +108,24 @@ bash services_ctl.sh status
 # From demo/
 
 # Start / stop / restart all at once
-bash services_ctl.sh start
-bash services_ctl.sh stop
-bash services_ctl.sh restart
+sudo bash services_ctl.sh start
+sudo bash services_ctl.sh stop
+sudo bash services_ctl.sh restart
 
 # Status summary of all services
 bash services_ctl.sh status
 
 # Follow logs for a specific service via journald
-journalctl -u siem-producer-dns -f
+sudo journalctl -u siem-producer-dns -f
+sudo journalctl -u siem-dns-streaming -f
 
-# Follow logs via the on-disk log file (after logging setup - see below)
-tail -f /var/log/siem/producer-dns.log
+sudo journalctl -u siem-producer-fortigate -f
+sudo journalctl -u siem-fortigate-streaming -f
+
+sudo journalctl -u siem-producer-paloalto -f
+sudo journalctl -u siem-paloalto-streaming -f
+
+sudo journalctl -u siem-producer-windows -f
 
 # Reload a unit file after editing it
 sudo systemctl daemon-reload
@@ -98,6 +145,18 @@ forwarding matching entries from journald to per-service files via rsyslog.
 ```bash
 # From demo/
 sudo bash setup_logging.sh
+
+# Follow logs via the on-disk log file (after logging setup - see below)
+sudo tail -f /var/log/siem/producer-dns.log
+sudo tail -f /var/log/siem/streaming-dns.log
+
+sudo tail -f /var/log/siem/producer-fortigate.log
+sudo tail -f /var/log/siem/streaming-fortigate.log
+
+sudo tail -f /var/log/siem/producer-paloalto.log
+sudo tail -f /var/log/siem/streaming-paloalto.log
+
+sudo tail -f /var/log/siem/producer-windows.log
 ```
 
 What the script does:

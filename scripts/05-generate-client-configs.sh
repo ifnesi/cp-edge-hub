@@ -66,12 +66,14 @@ write_registry() {
 # Used with confluent-kafka-python SerializingProducer / DeserializingConsumer.
 
 schema.registry.url=${url}
+schemaRegistryURL=${url}
 
 # Basic auth
 schema.registry.basic.auth.credentials.source=USER_INFO
 schema.registry.basic.auth.user.info=${SR_USER}:${SR_PASS}
 
 # TLS — shared CA cert (relative to where your script runs)
+ssl.ca.location=${CA_CERT_PATH}
 schema.registry.ssl.ca.location=${CA_CERT_PATH}
 
 # Schema auto-registration (set to false in production)

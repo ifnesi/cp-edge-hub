@@ -3,23 +3,21 @@
 # Creates, installs, and enables all SIEM emulator systemd service units.
 # Run once as root (or via sudo) after cloning the repo.
 #
-# Usage (from the demo/ folder):
+# Usage (from ~/siem-emulator on the EC2):
 #   sudo bash setup_services.sh
 #   sudo bash setup_services.sh --repo-dir /opt/siem-emulator --user myuser
 #   sudo bash setup_services.sh --frequency 0.05 --batch-size 50 --partitions 3
-#   sudo bash setup_services.sh --kafka-config /etc/siem/kafka.properties --registry-config /etc/siem/registry.properties
+#   sudo bash setup_services.sh --kafka-config /path/to/kafka.properties --registry-config /path/to/registry.properties
 
 set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-# This script lives in cp-edge-hub/demo/. The siem-emulator repo is cloned
-# alongside it at cp-edge-hub/demo/siem-emulator/. Kafka/SR config files live
-# in cp-edge-hub/config/ (one level above this script's directory).
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"          # cp-edge-hub/demo/
-CP_EDGE_HUB_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"  # cp-edge-hub/
-REPO_DIR="${REPO_DIR:-${SCRIPT_DIR}/siem-emulator}"  # cp-edge-hub/demo/siem-emulator/
+# This script lives in ~/siem-emulator/ on the EC2. Kafka/SR config files live
+# in ~/siem-emulator/kafka/ (copied there by scripts/08-copy-config-to-ec2.sh).
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"          # ~/siem-emulator/
+REPO_DIR="${REPO_DIR:-${SCRIPT_DIR}}"                # ~/siem-emulator/
 VENV_DIR="${REPO_DIR}/.venv"
-SERVICE_USER="${SERVICE_USER:-$(logname 2>/dev/null || echo ec2-user)}"
+SERVICE_USER="${SERVICE_USER:-${SUDO_USER:-$(logname 2>/dev/null || echo ssm-user)}}"
 SYSTEMD_DIR="/etc/systemd/system"
 RESTART_SEC=10   # seconds before restarting a failed service
 
@@ -28,8 +26,8 @@ FREQUENCY=0.1
 BATCH_SIZE=20
 PARTITIONS=1
 # Absolute paths so service units resolve correctly regardless of WorkingDirectory.
-KAFKA_CONFIG="${CP_EDGE_HUB_ROOT}/config/kafka_edge.properties"
-REGISTRY_CONFIG="${CP_EDGE_HUB_ROOT}/config/registry_edge.properties"
+KAFKA_CONFIG="${REPO_DIR}/kafka/kafka_edge.properties"
+REGISTRY_CONFIG="${REPO_DIR}/kafka/registry_edge.properties"
 
 # ── Producer topic names ───────────────────────────────────────────────────────
 TOPIC_WINDOWS="siem_poc_windows_eventlog_logs"
@@ -187,7 +185,7 @@ done
 echo ""
 echo "Done. All services are installed and enabled."
 echo ""
-echo "Next steps (from the demo/ folder):"
-echo "  Start all services now  :  bash demo/services_ctl.sh start"
-echo "  Check status            :  bash demo/services_ctl.sh status"
+echo "Next steps (from ~/siem-emulator):"
+echo "  Start all services now  :  bash services_ctl.sh start"
+echo "  Check status            :  bash services_ctl.sh status"
 echo "  Follow logs for a unit  :  journalctl -u siem-producer-dns -f"

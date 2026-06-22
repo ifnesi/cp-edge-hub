@@ -153,6 +153,8 @@ Plus this **custom inline policy** for EKS-specific actions:
         "ssm:ResumeSession",
         "ssm:DescribeSessions",
         "ssm:GetConnectionStatus",
+        "ssm:SendCommand",
+        "ssm:GetCommandInvocation",
         "ssmmessages:CreateControlChannel",
         "ssmmessages:CreateDataChannel",
         "ssmmessages:OpenControlChannel",
@@ -290,8 +292,9 @@ Verify both contexts exist and point to EKS (not Docker):
 ```bash
 kubectl config get-contexts
 # Should show:
-#   edge    CpEdgeHub-edge    ...   <AWS account>.gr7.eu-west-2.eks.amazonaws.com
-#   hub     CpEdgeHub-hub     ...   <AWS account>.gr7.eu-west-2.eks.amazonaws.com
+# CURRENT   NAME             CLUSTER                                                     AUTHINFO                                                    NAMESPACE
+#           edge             arn:aws:eks:eu-west-2:XXXXXXXXXXXX:cluster/CpEdgeHub-edge   arn:aws:eks:eu-west-2:XXXXXXXXXXXX:cluster/CpEdgeHub-edge   
+# *         hub              arn:aws:eks:eu-west-2:XXXXXXXXXXXX:cluster/CpEdgeHub-hub    arn:aws:eks:eu-west-2:XXXXXXXXXXXX:cluster/CpEdgeHub-hub 
 ```
 
 Check that nodes are Ready on both clusters:
@@ -299,7 +302,18 @@ Check that nodes are Ready on both clusters:
 ```bash
 kubectl --context=edge get nodes
 kubectl --context=hub  get nodes
-# All 6 nodes per cluster should show STATUS=Ready
+```
+
+All 6 nodes per cluster should show `STATUS=Ready`, for example:
+
+```bash
+# NAME                                       STATUS   ROLES    AGE   VERSION
+# ip-10-0-1-118.eu-west-2.compute.internal   Ready    <none>   25m   v1.36.2-eks-93b80c6
+# ip-10-0-1-156.eu-west-2.compute.internal   Ready    <none>   25m   v1.36.2-eks-93b80c6
+# ip-10-0-1-165.eu-west-2.compute.internal   Ready    <none>   25m   v1.36.2-eks-93b80c6
+# ip-10-0-1-185.eu-west-2.compute.internal   Ready    <none>   25m   v1.36.2-eks-93b80c6
+# ip-10-0-1-207.eu-west-2.compute.internal   Ready    <none>   25m   v1.36.2-eks-93b80c6
+# ip-10-0-1-92.eu-west-2.compute.internal    Ready    <none>   25m   v1.36.2-eks-93b80c6
 ```
 
 > **Switching back to Docker Desktop later:** Docker Desktop adds its own
@@ -343,6 +357,7 @@ A single self-signed CA signs certs for both clusters. This lets the Hub verify
 Edge certificates using one shared truststore - essential for Cluster Linking.
 
 ```bash
+# Make sure you are back to the root folder, in case you are still in terraform/ go back one level up (cd ..)
 bash certs/generate-certs.sh
 ```
 
@@ -400,10 +415,11 @@ Wait for the operator pod, then confirm it's the 3.2.x line:
 kubectl --context="${EDGE_CTX}" rollout status deploy/confluent-operator -n cp-edge
 kubectl --context="${HUB_CTX}"  rollout status deploy/confluent-operator -n cp-hub
 
-# Verify operator version (expect 3.2.x)
+# Verify operator version (expect 3.2.x) - Edge
 helm --kube-context="${EDGE_CTX}" list -n cp-edge
-kubectl --context="${EDGE_CTX}" get deploy confluent-operator -n cp-edge \
-  -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+
+# Verify operator version (expect 3.2.x) - Hub
+helm --kube-context="${HUB_CTX}" list -n cp-hub
 ```
 
 ---
@@ -459,6 +475,16 @@ The CfK resources are configured to use a license by default. Follow one of thes
 cat > license.txt <<'EOF'
 <your-jwt-license-token-here>
 EOF
+```
+
+To verify if the license is valid, run the command below. If the license is valid, you'll see the expiration date (`exp`) as a date in the future.
+
+```bash
+payload=$(cat license.txt | cut -d'.' -f2 | base64 -d)
+echo "\n$payload" | jq '.iat |= (. | strflocaltime("%Y-%m-%d %H:%M:%S GMT")) | .exp |= (. | strflocaltime("%Y-%m-%d %H:%M:%S GMT"))'
+echo ""
+echo "$payload" | jq -e ".exp > $(date +%s)" >/dev/null
+echo -e "Confluent Platform License Status: \e[32mVALID\e[0m" || echo -e "License Status: \e[31mINVALID\e[0m\n"
 ```
 
 **2. Run the license installation script:**
@@ -577,8 +603,7 @@ instance is created later, manually, in Control Center** (Step 11).
 kubectl --context="${HUB_CTX}" apply -f hub/04-connect.yaml
 
 # First start is slow - the init container downloads + installs the plugin.
-kubectl --context="${HUB_CTX}" wait pod -l app=connect -n cp-hub \
-  --for=condition=Ready --timeout=600s
+kubectl --context="${HUB_CTX}" get pods -n cp-hub -w
 
 # Confirm the Splunk Sink plugin is present
 kubectl --context="${HUB_CTX}" exec -n cp-hub connect-0 -- \
@@ -617,7 +642,7 @@ guaranteed to be static** — if AWS recycles them, re-run the script and update
 
 ---
 
-## Step 7.5 - Configure Cross-Cluster DNS (required for linking)
+## Step 7.1 - Configure Cross-Cluster DNS (required for linking)
 
 The `/etc/hosts` entries from Step 7 only work for CLI clients **on your Mac**.
 Pods running inside EKS have no such entries, so anything that connects
@@ -710,6 +735,11 @@ kafka-topics --list \
 Schema Linking is done via Schema Registry REST API (no CfK CRD). The script
 configures an Exporter on Edge SR that continuously pushes schemas to Hub SR.
 
+> **Note:** The default context on the Edge Schema Registry is schema linked to
+> the `hub` context on the Hub Schema Registry. Schemas registered under the
+> default context on Edge are automatically exported to (and available under) the
+> `hub` context on Hub SR.
+
 **Export all subjects (default — use this):**
 
 ```bash
@@ -733,13 +763,14 @@ curl -k \
   https://schemaregistry.edge.kafka.demo:8081/exporters/edge-to-hub-exporter/status
 ```
 
-Verify subjects appear on Hub SR:
+Verify subjects on Hub SR under the `hub` context (no subjects will appear until
+schemas are registered on Edge):
 
 ```bash
 curl -k \
   --cacert certs/cacerts.pem \
   -u admin:admin-secret \
-  https://schemaregistry.hub.kafka.demo:8081/subjects
+  https://schemaregistry.hub.kafka.demo:8081/contexts/hub/subjects
 ```
 
 ---
@@ -969,7 +1000,7 @@ NLB (`controlcenter-bootstrap-lb`). Resolve it to an `/etc/hosts` entry like the
 other components, then open it in your browser:
 
 ```bash
-# Resolve the C3 NLB to an IP and print the /etc/hosts line:
+# Resolve the C3 NLB to an IP:
 HOST=$(kubectl --context="${HUB_CTX}" get svc controlcenter-bootstrap-lb -n cp-hub \
   -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 echo "$(dig +short "$HOST" | grep -E '^[0-9.]+$' | head -1)   controlcenter.hub.kafka.demo"
@@ -1003,7 +1034,7 @@ and Step 5 with the current manifests.
 
 ```bash
 kubectl --context="${EDGE_CTX}" apply -f edge/05-controlcenter.yaml
-kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w   # wait for controlcenter-0 Ready
+kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
 ```
 
 Access it the same way as Hub, via its NLB:
@@ -1022,8 +1053,7 @@ Prometheus (remote-write receiver) **and the only Grafana**; Edge gets a
 Prometheus that remote-writes to Hub. Takes ~10 minutes.
 
 ```bash
-EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" \
-  bash monitoring/01-install-prometheus-stack.sh
+EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash monitoring/01-install-prometheus-stack.sh
 ```
 
 Apply the PodMonitor (scrapes the CfK JMX exporter on port `prometheus`/7778) on
@@ -1135,8 +1165,8 @@ kubectl --context="${HUB_CTX}" apply -f linking/01-clusterlink.yaml
 
 ```bash
 # Copy the exact command from terraform output, or:
-INSTANCE_ID=$(terraform output -raw producer_host_instance_id)
-REGION=$(terraform output -raw aws_region)
+INSTANCE_ID=$(cd terraform && terraform output -raw producer_host_instance_id)
+REGION=$(cd terraform && terraform output -raw aws_region)
 aws ssm start-session --target "$INSTANCE_ID" --region "$REGION"
 ```
 

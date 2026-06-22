@@ -85,6 +85,11 @@ generate_truststore() {
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+# Clean up existing cert directories
+log "Cleaning up existing cert directories..."
+rm -rf "${CERTS_DIR}/edge" "${CERTS_DIR}/hub"
+log "Cleanup complete"
+
 generate_ca
 
 generate_server_cert "edge" \
