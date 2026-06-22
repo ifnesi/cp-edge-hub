@@ -50,9 +50,10 @@ spec:
                   values:
                     - broker
 
-  # TLS for the C3 web UI (cert SAN *.edge.kafka.demo covers controlcenter.edge.kafka.demo).
+  # Dedicated TLS secret — includes the C3 NLB hostname as a SAN so the browser
+  # SNI check passes. Created/refreshed by scripts/09-refresh-c3-tls.sh.
   tls:
-    secretRef: tls-kafka
+    secretRef: tls-controlcenter
 
   externalAccess:
     type: loadBalancer

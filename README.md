@@ -361,6 +361,10 @@ Edge certificates using one shared truststore - essential for Cluster Linking.
 bash certs/generate-certs.sh
 ```
 
+> **Warning:** only run `generate-certs.sh` during initial setup. It regenerates
+> the CA, which invalidates all existing certs. To fix C3 public access on a live
+> cluster use `scripts/09-refresh-c3-tls.sh` instead (see Step 11).
+
 Output:
 ```
 certs/
@@ -1038,69 +1042,52 @@ This demo has **two** monitoring layers, by design:
   one Grafana covers both clusters — switch with the dashboard `Namespace`
   variable (`cp-edge` / `cp-hub`).
 
-### Step 11 - Deploy Control Center (Hub)
+### Step 11 - Deploy Control Center
 
-C3 manages the Connect cluster from Step 6, so complete **Step 6 (Deploy Hub Cluster)**
-first. (It no longer reaches Edge, so the Edge NLBs / Step 7.5 are not required
-for C3 itself.)
+Deploy C3 on both clusters. Hub C3 also manages the Connect cluster, so
+complete **Step 6 (Deploy Hub Cluster)** first.
 
 ```bash
+# Hub (runs 3 containers: C3 + Prometheus + Alertmanager — give it time)
 kubectl --context="${HUB_CTX}" apply -f hub/05-controlcenter.yaml
-
-# The pod runs three containers (C3 + Prometheus + Alertmanager) - give it time.
 kubectl --context="${HUB_CTX}" get pods -n cp-hub -w
-```
 
-**Access the UI.** The C3 web UI is on port 9021 (HTTPS), exposed via its own
-NLB (`controlcenter-bootstrap-lb`). Resolve it to an `/etc/hosts` entry like the
-other components, then open it in your browser:
-
-```bash
-# Resolve the C3 NLB to an IP:
-HOST=$(kubectl --context="${HUB_CTX}" get svc controlcenter-bootstrap-lb -n cp-hub \
-  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-echo "$(dig +short "$HOST" | grep -E '^[0-9.]+$' | head -1)   controlcenter.hub.kafka.demo"
-
-# Add that line to /etc/hosts, then open:
-#   https://controlcenter.hub.kafka.demo:9021
-```
-
-> **Fallback (no /etc/hosts edit):** `kubectl --context="${HUB_CTX}" port-forward
-> -n cp-hub svc/controlcenter 9021:9021`, then open `https://localhost:9021`.
-
-(Accept the self-signed cert warning.)
-
-**Add the Splunk connector** from the UI: open the **`connect`** cluster →
-**Add connector → Splunk Sink Connector**, then fill in the Splunk HEC settings
-(`splunk.hec.uri`, `splunk.hec.token`, source topics). The plugin is already
-installed (Step 6); C3 only creates the running connector instance.
-
-### Step 11b - Deploy Control Center (Edge)
-
-The Edge cluster runs its own C3 (`name: edge.cluster`). It requires the Edge
-metrics secrets (created by `scripts/01-create-secrets-edge.sh`) and the Edge
-components' `metricsClient` dependency — both already in place if you ran Step 3
-and Step 5 with the current manifests.
-
-> **Re-running Step 3/5?** If you deployed Edge *before* these C3 additions,
-> re-run `scripts/01-create-secrets-edge.sh` (adds the 4 metrics secrets) and
-> re-apply `edge/01-kraftcontroller.yaml`, `edge/02-kafka.yaml`,
-> `edge/03-schemaregistry.yaml` (adds `metricsClient`). The operator rolls the
-> pods automatically.
-
-```bash
+# Edge
 kubectl --context="${EDGE_CTX}" apply -f edge/05-controlcenter.yaml
 kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
 ```
 
-Access it the same way as Hub, via its NLB:
+**Enable public access.** Once both C3 pods are up, run the TLS script — it
+generates a dedicated cert per cluster (using the existing CA, brokers not
+touched), re-applies the ControlCenter CRs to switch to the new cert, and waits
+for the rollout:
 
 ```bash
-HOST=$(kubectl --context="${EDGE_CTX}" get svc controlcenter-bootstrap-lb -n cp-edge \
-  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-echo "$(dig +short "$HOST" | grep -E '^[0-9.]+$' | head -1)   controlcenter.edge.kafka.demo"
-# Add to /etc/hosts, then open https://controlcenter.edge.kafka.demo:9021
+EDGE_CTX="${EDGE_CTX}" HUB_CTX="${HUB_CTX}" bash scripts/09-refresh-c3-tls.sh
 ```
+
+> The initial `kubectl apply` above uses `tls-kafka` (the shared broker cert).
+> The script switches C3 to its own `tls-controlcenter` secret that includes the
+> NLB hostname as a SAN — required to avoid the "Invalid SNI" browser error.
+
+Get the public NLB URLs:
+
+```bash
+kubectl --context="${HUB_CTX}" get svc controlcenter-bootstrap-lb -n cp-hub \
+  -o jsonpath='https://{.status.loadBalancer.ingress[0].hostname}:9021{"\n"}'
+
+kubectl --context="${EDGE_CTX}" get svc controlcenter-bootstrap-lb -n cp-edge \
+  -o jsonpath='https://{.status.loadBalancer.ingress[0].hostname}:9021{"\n"}'
+```
+
+Open either URL in a browser — you will see a self-signed cert warning (the CA
+is not in the OS trust store), click through to proceed. No `/etc/hosts` entry
+needed.
+
+**Add the Splunk connector** (Hub only): open the **`connect`** cluster →
+**Add connector → Splunk Sink Connector**, then fill in the Splunk HEC settings
+(`splunk.hec.uri`, `splunk.hec.token`, source topics). The plugin is already
+installed (Step 6); C3 only creates the running connector instance.
 
 ### Step 12 - Deploy Prometheus + the single Grafana
 
