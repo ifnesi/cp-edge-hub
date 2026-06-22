@@ -62,6 +62,12 @@ $KCL create secret generic credential \
 # Prometheus/Alertmanager). Server secrets hold the allowed user list; client
 # secrets hold the username/password components + C3 present. All use basic.txt.
 # -------------------------------------------------------------------------
+log "  rest-credential (KafkaRestClass client credentials)"
+$KCL create secret generic rest-credential \
+  --namespace="${NS}" \
+  --from-file=basic.txt="${CREDS_DIR}/rest-client.txt" \
+  --dry-run=client -o yaml | $KCL apply -f -
+
 log "  prometheus-credentials (server)"
 $KCL create secret generic prometheus-credentials \
   --namespace="${NS}" \

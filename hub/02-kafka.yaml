@@ -111,6 +111,12 @@ spec:
     kafkaRest:
       tls:
         enabled: true
+      authentication:
+        type: basic
+        basic:
+          secretRef: credential
+          roles:
+            - Administrators
       externalAccess:
         type: loadBalancer
         loadBalancer:
@@ -123,6 +129,7 @@ spec:
   configOverrides:
     server:
       - confluent.balancer.enable=true
+      - inter.broker.listener.name=REPLICATION
       - authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
       - confluent.authorizer.access.rule.providers=KRAFT_ACL
       - allow.everyone.if.no.acl.found=false
@@ -538,6 +545,6 @@ spec:
     authentication:
       type: basic
       basic:
-        secretRef: credential
+        secretRef: rest-credential
         roles:
           - Administrators

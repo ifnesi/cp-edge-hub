@@ -76,6 +76,8 @@ spec:
 
   configOverrides:
     server:
+      - confluent.balancer.enable=true
+      - default.replication.factor=3
       - authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
       - confluent.authorizer.access.rule.providers=KRAFT_ACL
       - allow.everyone.if.no.acl.found=false

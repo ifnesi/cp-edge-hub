@@ -76,6 +76,12 @@ password=clusterlink-secret" \
 # client secrets hold the username/password the components + C3 present.
 # All use the key `basic.txt`.
 # -------------------------------------------------------------------------
+log "  rest-credential (KafkaRestClass client credentials)"
+$KCL create secret generic rest-credential \
+  --namespace="${NS}" \
+  --from-file=basic.txt="${CREDS_DIR}/rest-client.txt" \
+  --dry-run=client -o yaml | $KCL apply -f -
+
 log "  prometheus-credentials (server)"
 $KCL create secret generic prometheus-credentials \
   --namespace="${NS}" \
