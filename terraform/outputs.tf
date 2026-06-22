@@ -33,6 +33,11 @@ output "producer_host_connect_command" {
   value       = "aws ssm start-session --target ${aws_instance.producer_host.id} --region ${var.aws_region}"
 }
 
+output "nat_gateway_public_ip" {
+  description = "Outgoing public IP for all private-subnet workloads (EKS pods, EC2 producer). Add to Splunk HEC / firewall allowlists."
+  value       = aws_eip.nat.public_ip
+}
+
 output "kubeconfig_commands" {
   description = "Run these after terraform apply to register both clusters in your kubeconfig"
   value       = <<-EOT

@@ -38,3 +38,5 @@ jmx-monitoring-stacks/
 
 # SIEM Emulator
 demo/siem-emulator/
+scripts/dump-topics-markdown.py
+hub-topics-report.md

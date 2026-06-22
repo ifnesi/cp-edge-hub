@@ -613,6 +613,15 @@ kubectl --context="${HUB_CTX}" exec -n cp-hub connect-0 -- \
 > The Splunk connector (`splunk/kafka-connect-splunk`) is Splunk's open-source
 > connector for forwarding Kafka topics to Splunk HEC. No license key required.
 
+> **Outgoing public IP of Connect (for Splunk HEC allowlisting):** Connect pods
+> run in the private subnet and egress through the shared NAT Gateway. The public
+> IP is the NAT Gateway's Elastic IP — stable for the lifetime of the Terraform
+> workspace:
+> ```bash
+> echo $(cd terraform && terraform output -raw nat_gateway_public_ip)
+> ```
+> Add this IP to your Splunk HEC allowlist before creating the connector.
+
 ---
 
 ## Step 7 - Resolve External LB Addresses
