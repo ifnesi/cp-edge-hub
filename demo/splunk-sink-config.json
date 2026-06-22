@@ -11,7 +11,7 @@
     "value.converter.schema.registry.url": "https://schemaregistry.hub.kafka.demo:8081",
     "value.converter.basic.auth.credentials.source": "USER_INFO",
     "value.converter.basic.auth.user.info": "admin:admin-secret",
-    "value.converter.schema.registry.ssl.truststore.location": "certs/cacerts.pem",
+    "value.converter.schema.registry.ssl.truststore.location": "/home/appuser/certs/cacerts.pem",
     "value.converter.schema.registry.ssl.truststore.type": "PEM",
     
     "confluent.topic.bootstrap.servers": "hub.kafka.demo:9092",
@@ -19,13 +19,13 @@
     "confluent.topic.security.protocol": "SASL_SSL",
     "confluent.topic.sasl.mechanism": "PLAIN",
     "confluent.topic.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"client\" password=\"client-secret\";",
-    "confluent.topic.ssl.truststore.location": "certs/cacerts.pem",
+    "confluent.topic.ssl.truststore.location": "/home/appuser/certs/cacerts.pem",
     "confluent.topic.ssl.truststore.type": "PEM",
 
     "consumer.override.security.protocol": "SASL_SSL",
     "consumer.override.sasl.mechanism": "PLAIN",
     "consumer.override.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"client\" password=\"client-secret\";",
-    "consumer.override.ssl.truststore.location": "certs/cacerts.pem",
+    "consumer.override.ssl.truststore.location": "/home/appuser/certs/cacerts.pem",
     "consumer.override.ssl.truststore.type": "PEM",
 
     "splunk.hec.uri": "<PLACEHOLDER_HEC_URI>",
