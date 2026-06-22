@@ -253,7 +253,7 @@ The connector's egress IP (visible to Splunk's HEC allowlist) is the NAT Gateway
 Retrieve it with:
 
 ```bash
-cd terraform && terraform output nat_gateway_public_ip
+echo $(cd terraform && terraform output nat_gateway_public_ip)
 ```
 
 ### Delete the connector
