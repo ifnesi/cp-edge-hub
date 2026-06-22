@@ -129,6 +129,8 @@ spec:
   configOverrides:
     server:
       - confluent.balancer.enable=true
+      - confluent.balancer.heal.uneven.load.trigger=ANY_UNEVEN_LOAD
+      - confluent.balancer.throttle.bytes.per.second=104857600
       - inter.broker.listener.name=REPLICATION
       - authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
       - confluent.authorizer.access.rule.providers=KRAFT_ACL

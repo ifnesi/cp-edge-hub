@@ -74,7 +74,13 @@ spec:
   configOverrides:
     server:
       - confluent.balancer.enable=true
+      - confluent.balancer.heal.uneven.load.trigger=ANY_UNEVEN_LOAD
       - default.replication.factor=3
+      - inter.broker.listener.name=REPLICATION
+      - listener.security.protocol.map=CONTROLLER:SASL_PLAINTEXT,REPLICATION:SASL_PLAINTEXT
+      - listener.name.replication.sasl.enabled.mechanisms=PLAIN
+      - listener.name.replication.sasl.mechanism=PLAIN
+      - listener.name.replication.plain.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="kafka" password="kafka-secret";
       - authorizer.class.name=io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
       - confluent.authorizer.access.rule.providers=KRAFT_ACL
       - allow.everyone.if.no.acl.found=false

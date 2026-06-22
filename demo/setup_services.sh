@@ -24,7 +24,7 @@ RESTART_SEC=10   # seconds before restarting a failed service
 # ── Producer defaults (passed to every siem_producer.py invocation) ───────────
 FREQUENCY=0.1
 BATCH_SIZE=20
-PARTITIONS=1
+PARTITIONS=3
 # Absolute paths so service units resolve correctly regardless of WorkingDirectory.
 KAFKA_CONFIG="${REPO_DIR}/kafka/kafka_edge.properties"
 REGISTRY_CONFIG="${REPO_DIR}/kafka/registry_edge.properties"
