@@ -224,15 +224,12 @@ the config to the Connect REST API from inside the pod:
 ```bash
 HEC_TOKEN="<your-hec-token>"
 HEC_URI="https://<your-splunk-host>:8088"
-SPLUNK_INDEX="siem_poc"   # must exist and be writable by the HEC token
 
 jq --arg token "$HEC_TOKEN" \
    --arg uri   "$HEC_URI" \
-   --arg index "$SPLUNK_INDEX" \
    '
    .config["splunk.hec.token"]  = $token |
-   .config["splunk.hec.uri"]    = $uri   |
-   .config["splunk.indexes"]    = $index
+   .config["splunk.hec.uri"]    = $uri
    ' demo/splunk-sink-config.json \
 | kubectl --context=hub exec -i -n cp-hub connect-0 -- \
     curl -s -X POST http://localhost:8083/connectors \
