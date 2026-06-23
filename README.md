@@ -44,6 +44,8 @@ EKS Cluster A - cp-edge (eu-west-2a)         EKS Cluster B - cp-hub (eu-west-2a)
   resolve the cross-cluster *.kafka.demo names for Cluster/Schema Linking.
 ```
 
+![General Architecture Overview etc.](imgs/general_architecture.png)
+
 ---
 
 ## Prerequisites
