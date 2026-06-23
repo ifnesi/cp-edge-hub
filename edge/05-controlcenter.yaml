@@ -18,6 +18,19 @@ spec:
   configOverrides:
     server:
       - confluent.controlcenter.kafka.Edge.bootstrap.servers=kafka.cp-edge.svc.cluster.local:9071
+      # CFK generates confluent.controlcenter.streams.sasl.* for the Streams connection but
+      # omits security settings for the named managed-cluster client (kafka.Edge.*). Without
+      # these the Edge admin client defaults to PLAINTEXT, fails SASL handshake on the
+      # INTERNAL listener, and the Edge cluster panel is permanently dead (clusterId: null).
+      - confluent.controlcenter.kafka.Edge.security.protocol=SASL_PLAINTEXT
+      - confluent.controlcenter.kafka.Edge.sasl.mechanism=PLAIN
+      - confluent.controlcenter.kafka.Edge.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="${file:/mnt/secrets/credential/plain.txt:username}" password="${file:/mnt/secrets/credential/plain.txt:password}";
+      # Raise the absolute-floor for disk-skew warnings so C3 and SBC thresholds align.
+      # C3 fires at >10% relative variance with no absolute floor by default (1 GB).
+      # SBC only acts at >20% relative AND >~20% disk-full — on 1 TiB brokers that's
+      # ~200 GB. Setting 10 GB here keeps early-warning sensitivity while suppressing
+      # false-positive Criticals at trivial fill levels (currently ~1.7% full).
+      - confluent.controlcenter.disk.skew.warning.min.bytes=10737418240
 
   # -------------------------------------------------------------------------
   # Next-generation Control Center (C3++), 2.5.0 — bundles Prometheus +

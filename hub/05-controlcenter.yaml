@@ -18,6 +18,12 @@ spec:
   configOverrides:
     server:
       - confluent.controlcenter.kafka.Hub.bootstrap.servers=kafka.cp-hub.svc.cluster.local:9071
+      # Same CFK omission as edge — Hub.* named-cluster client defaults to PLAINTEXT without these.
+      - confluent.controlcenter.kafka.Hub.security.protocol=SASL_PLAINTEXT
+      - confluent.controlcenter.kafka.Hub.sasl.mechanism=PLAIN
+      - confluent.controlcenter.kafka.Hub.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="${file:/mnt/secrets/credential/plain.txt:username}" password="${file:/mnt/secrets/credential/plain.txt:password}";
+      # See edge/05-controlcenter.yaml for rationale. Same 1 TiB brokers, same threshold.
+      - confluent.controlcenter.disk.skew.warning.min.bytes=10737418240
 
   # -------------------------------------------------------------------------
   # Next-generation Control Center (C3++), 2.5.0 — a separately-versioned
