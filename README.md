@@ -1312,3 +1312,9 @@ helm --kube-context="${HUB_CTX}"  uninstall confluent-operator -n cp-hub
 ```bash
 cd terraform && terraform destroy
 ```
+
+---
+
+## Lessons Learned
+
+See [Lessons_Learned.md](Lessons_Learned.md) for operational insights, gotchas, and best practices discovered while running this PoC.
