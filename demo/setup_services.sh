@@ -132,12 +132,12 @@ write_service "siem-producer-windows" \
 
 write_service "siem-producer-fortigate" \
   "${REPO_DIR}" \
-  "siem_producer.py fortigate_log -t ${TOPIC_FORTIGATE} --no-schema ${PRODUCER_COMMON}" \
+  "siem_producer.py fortigate_log -t ${TOPIC_FORTIGATE} --no-schema -k devname ${PRODUCER_COMMON}" \
   "SIEM Producer — FortiGate"
 
 write_service "siem-producer-paloalto" \
   "${REPO_DIR}" \
-  "siem_producer.py paloalto_log -t ${TOPIC_PALOALTO} --no-schema ${PRODUCER_COMMON}" \
+  "siem_producer.py paloalto_log -t ${TOPIC_PALOALTO} --no-schema -k devname ${PRODUCER_COMMON}" \
   "SIEM Producer — Palo Alto"
 
 write_service "siem-producer-dns" \
