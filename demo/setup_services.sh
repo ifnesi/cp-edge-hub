@@ -127,7 +127,7 @@ PRODUCER_COMMON="-f ${FREQUENCY} -b ${BATCH_SIZE} -p ${PARTITIONS} --kafka-confi
 
 write_service "siem-producer-windows" \
   "${REPO_DIR}" \
-  "siem_producer.py windows_event_log -t ${TOPIC_WINDOWS} ${PRODUCER_COMMON}" \
+  "siem_producer.py windows_event_log -t ${TOPIC_WINDOWS} -k Computer ${PRODUCER_COMMON}" \
   "SIEM Producer — Windows Event Log"
 
 write_service "siem-producer-fortigate" \
