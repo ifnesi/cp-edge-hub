@@ -6,7 +6,7 @@
 # Usage (from ~/siem-emulator on the EC2):
 #   sudo bash setup_services.sh
 #   sudo bash setup_services.sh --repo-dir /opt/siem-emulator --user myuser
-#   sudo bash setup_services.sh --frequency 0.05 --batch-size 50 --partitions 3
+#   sudo bash setup_services.sh --frequency 0.05 --batch-size 50 --partitions 3 -rf 3
 #   sudo bash setup_services.sh --kafka-config /path/to/kafka.properties --registry-config /path/to/registry.properties
 
 set -euo pipefail
@@ -25,6 +25,7 @@ RESTART_SEC=10   # seconds before restarting a failed service
 FREQUENCY=0.1
 BATCH_SIZE=20
 PARTITIONS=3
+REPLICATION_FACTOR=3
 # Absolute paths so service units resolve correctly regardless of WorkingDirectory.
 KAFKA_CONFIG="${REPO_DIR}/kafka/kafka_edge.properties"
 REGISTRY_CONFIG="${REPO_DIR}/kafka/registry_edge.properties"
@@ -51,6 +52,7 @@ while [[ $# -gt 0 ]]; do
     --frequency)              FREQUENCY="$2";              shift 2 ;;
     --batch-size)             BATCH_SIZE="$2";             shift 2 ;;
     --partitions)             PARTITIONS="$2";             shift 2 ;;
+    --replication-factor)     REPLICATION_FACTOR="$2";     shift 2 ;;
     --kafka-config)           KAFKA_CONFIG="$2";           shift 2 ;;
     --registry-config)        REGISTRY_CONFIG="$2";        shift 2 ;;
     --topic-windows)          TOPIC_WINDOWS="$2";          shift 2 ;;
@@ -67,14 +69,15 @@ done
 
 PYTHON="${VENV_DIR}/bin/python"
 
-echo "==> Repo dir        : ${REPO_DIR}"
-echo "==> Venv            : ${VENV_DIR}"
-echo "==> Run as          : ${SERVICE_USER}"
-echo "==> Frequency       : ${FREQUENCY}s"
-echo "==> Batch size      : ${BATCH_SIZE}"
-echo "==> Partitions      : ${PARTITIONS}"
-echo "==> Kafka config    : ${KAFKA_CONFIG}"
-echo "==> Registry config : ${REGISTRY_CONFIG}"
+echo "==> Repo dir            : ${REPO_DIR}"
+echo "==> Venv                : ${VENV_DIR}"
+echo "==> Run as              : ${SERVICE_USER}"
+echo "==> Frequency           : ${FREQUENCY}s"
+echo "==> Batch size          : ${BATCH_SIZE}"
+echo "==> Partitions          : ${PARTITIONS}"
+echo "==> Replication factor  : ${REPLICATION_FACTOR}"
+echo "==> Kafka config        : ${KAFKA_CONFIG}"
+echo "==> Registry config     : ${REGISTRY_CONFIG}"
 echo "==> Topics (producers)  : windows=${TOPIC_WINDOWS}  fortigate=${TOPIC_FORTIGATE}  paloalto=${TOPIC_PALOALTO}  dns=${TOPIC_DNS}"
 echo "==> Source topics (apps): fortigate=${SOURCE_TOPIC_FORTIGATE}  paloalto=${SOURCE_TOPIC_PALOALTO}  dns=${SOURCE_TOPIC_DNS}"
 echo "==> DNS window          : ${DNS_WINDOW_SECONDS}s"
@@ -123,7 +126,7 @@ EOF
 echo "==> Writing service unit files..."
 
 # Producers — working directory: REPO_DIR
-PRODUCER_COMMON="-f ${FREQUENCY} -b ${BATCH_SIZE} -p ${PARTITIONS} --kafka-config ${KAFKA_CONFIG} --registry-config ${REGISTRY_CONFIG}"
+PRODUCER_COMMON="-f ${FREQUENCY} -b ${BATCH_SIZE} -p ${PARTITIONS} -rf ${REPLICATION_FACTOR} --kafka-config ${KAFKA_CONFIG} --registry-config ${REGISTRY_CONFIG}"
 
 write_service "siem-producer-windows" \
   "${REPO_DIR}" \
@@ -148,17 +151,17 @@ write_service "siem-producer-dns" \
 # Streaming apps — working directory: REPO_DIR/demo
 write_service "siem-fortigate-streaming" \
   "${REPO_DIR}/demo" \
-  "fortigate_streaming_app.py --kafka-config ${KAFKA_CONFIG} --registry-config ${REGISTRY_CONFIG} --schema-dir ./schemas/ --source-topic ${SOURCE_TOPIC_FORTIGATE}" \
+  "fortigate_streaming_app.py --kafka-config ${KAFKA_CONFIG} -p ${PARTITIONS} -rf ${REPLICATION_FACTOR} --registry-config ${REGISTRY_CONFIG} --schema-dir ./schemas/ --source-topic ${SOURCE_TOPIC_FORTIGATE}" \
   "SIEM Streaming App — FortiGate"
 
 write_service "siem-paloalto-streaming" \
   "${REPO_DIR}/demo" \
-  "paloalto_streaming_app.py --kafka-config ${KAFKA_CONFIG} --registry-config ${REGISTRY_CONFIG} --schema-dir ./schemas/ --source-topic ${SOURCE_TOPIC_PALOALTO}" \
+  "paloalto_streaming_app.py --kafka-config ${KAFKA_CONFIG} -p ${PARTITIONS} -rf ${REPLICATION_FACTOR} --registry-config ${REGISTRY_CONFIG} --schema-dir ./schemas/ --source-topic ${SOURCE_TOPIC_PALOALTO}" \
   "SIEM Streaming App — Palo Alto"
 
 write_service "siem-dns-streaming" \
   "${REPO_DIR}/demo" \
-  "dns_streaming_app.py --kafka-config ${KAFKA_CONFIG} --registry-config ${REGISTRY_CONFIG} --schema-dir ./schemas/ --source-topic ${SOURCE_TOPIC_DNS} --window-seconds ${DNS_WINDOW_SECONDS}" \
+  "dns_streaming_app.py --kafka-config ${KAFKA_CONFIG} -p ${PARTITIONS} -rf ${REPLICATION_FACTOR} --registry-config ${REGISTRY_CONFIG} --schema-dir ./schemas/ --source-topic ${SOURCE_TOPIC_DNS} --window-seconds ${DNS_WINDOW_SECONDS}" \
   "SIEM Streaming App — DNS Aggregation"
 
 # ── Reload and enable ─────────────────────────────────────────────────────────
