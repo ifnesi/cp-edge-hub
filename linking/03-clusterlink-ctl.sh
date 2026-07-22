@@ -48,7 +48,7 @@ krest() {
 # Resolve the Hub cluster ID (required by the v3 API path)
 # ---------------------------------------------------------------------------
 get_cluster_id() {
-  krest "${HUB_REST_URL}/v3/clusters" | jq -r '.data[0].cluster_id'
+  krest "${HUB_REST_URL}/kafka/v3/clusters" | jq -r '.data[0].cluster_id'
 }
 
 # ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ get_cluster_id() {
 # ---------------------------------------------------------------------------
 print_status() {
   local cluster_id="$1"
-  local base="${HUB_REST_URL}/v3/clusters/${cluster_id}/links/${LINK_NAME}"
+  local base="${HUB_REST_URL}/kafka/v3/clusters/${cluster_id}/links/${LINK_NAME}"
 
   echo ""
   log "=== Cluster Link: ${LINK_NAME} ==="
@@ -87,23 +87,25 @@ log "Resolving Hub cluster ID..."
 CLUSTER_ID=$(get_cluster_id)
 log "Cluster ID: ${CLUSTER_ID}"
 
-BASE_URL="${HUB_REST_URL}/v3/clusters/${CLUSTER_ID}/links/${LINK_NAME}"
+BASE_URL="${HUB_REST_URL}/kafka/v3/clusters/${CLUSTER_ID}/links/${LINK_NAME}"
 
 case "${ACTION}" in
   pause)
     log "Pausing Cluster Link '${LINK_NAME}' (simulating network failure)..."
-    krest "${BASE_URL}/mirrors" \
+    MIRROR_TOPICS=$(krest "${BASE_URL}/mirrors" | jq '[.data[].mirror_topic_name]')
+    krest "${BASE_URL}/mirrors:pause" \
       -X POST \
-      -d '{"action": "pause"}' | jq '{action: "pause", mirrors_affected: (.data | length)}'
+      -d "{\"mirror_topic_names\": ${MIRROR_TOPICS}}" | jq '{action: "pause", mirrors_affected: (.data | length)}'
     log "Link paused. Producers on Edge continue writing; Hub mirror topics stop replicating."
     print_status "${CLUSTER_ID}"
     ;;
 
   resume)
     log "Resuming Cluster Link '${LINK_NAME}'..."
-    krest "${BASE_URL}/mirrors" \
+    MIRROR_TOPICS=$(krest "${BASE_URL}/mirrors" | jq '[.data[].mirror_topic_name]')
+    krest "${BASE_URL}/mirrors:resume" \
       -X POST \
-      -d '{"action": "resume"}' | jq '{action: "resume", mirrors_affected: (.data | length)}'
+      -d "{\"mirror_topic_names\": ${MIRROR_TOPICS}}" | jq '{action: "resume", mirrors_affected: (.data | length)}'
     log "Link resumed. Replication restarts from last committed offset — watch lag drain to 0."
     print_status "${CLUSTER_ID}"
     ;;

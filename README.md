@@ -1256,6 +1256,18 @@ bash linking/03-clusterlink-ctl.sh status
 # Simulate network failure — pause the entire link
 bash linking/03-clusterlink-ctl.sh pause
 
+# Watch Edge offsets advancing every 2s (Ctrl-C to stop)
+watch -n 1 "kafka-get-offsets \
+  --bootstrap-server edge.kafka.demo:9092 \
+  --command-config scripts/edge-sslcli.properties \
+  --topic siem_poc_windows_eventlog_logs"
+
+# In another terminal — watch Hub mirror offsets freeze while the link is paused
+watch -n 1 "kafka-get-offsets \
+  --bootstrap-server hub.kafka.demo:9092 \
+  --command-config scripts/hub-sslcli.properties \
+  --topic siem_poc_windows_eventlog_logs"
+
 # ... show Edge producers still writing, lag growing in C3 or Grafana ...
 
 # Restore the link — replication catches up automatically
@@ -1281,6 +1293,9 @@ when the cluster is deleted. Delete the PVCs first so Kubernetes can release and
 delete the underlying EBS volumes before Terraform removes the clusters.
 
 ```bash
+EDGE_CTX=edge
+HUB_CTX=hub 
+
 kubectl --context="${EDGE_CTX}" delete pvc --all -n cp-edge
 kubectl --context="${HUB_CTX}"  delete pvc --all -n cp-hub
 
