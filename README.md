@@ -403,13 +403,15 @@ operator must be running before any platform CRDs are applied.
 kubectl --context="${EDGE_CTX}" create namespace cp-edge
 helm upgrade --install confluent-operator confluentinc/confluent-for-kubernetes \
   --kube-context="${EDGE_CTX}" \
-  --namespace cp-edge
+  --namespace cp-edge \
+  --version 0.1514.76
 
 # Hub
 kubectl --context="${HUB_CTX}" create namespace cp-hub
 helm upgrade --install confluent-operator confluentinc/confluent-for-kubernetes \
   --kube-context="${HUB_CTX}" \
-  --namespace cp-hub
+  --namespace cp-hub \
+  --version 0.1514.76
 ```
 
 > **KRaft note:** Confluent Platform 8.x is KRaft-only (ZooKeeper is removed), so
@@ -560,6 +562,9 @@ kubectl --context="${EDGE_CTX}" get pods -n cp-edge -w
 
 # Topics (21 SIEM topics - created via KafkaRestClass once brokers are ready)
 kubectl --context="${EDGE_CTX}" apply -f edge/04-topics.yaml
+
+# Check topcis were created with success (STATUS = CREATED)
+kubectl --context=edge get kafkatopic -n cp-edge
 ```
 
 ### Verify Edge
@@ -781,14 +786,14 @@ curl -k \
   https://schemaregistry.edge.kafka.demo:8081/exporters/edge-to-hub-exporter/status
 ```
 
-Verify subjects on Hub SR under the `hub` context (no subjects will appear until
+Verify subjects on Hub SR under the `edge` context (no subjects will appear until
 schemas are registered on Edge):
 
 ```bash
 curl -k \
   --cacert certs/cacerts.pem \
   -u admin:admin-secret \
-  https://schemaregistry.hub.kafka.demo:8081/contexts/hub/subjects
+  https://schemaregistry.hub.kafka.demo:8081/contexts/edge/subjects
 ```
 
 ---

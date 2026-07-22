@@ -561,7 +561,7 @@ spec:
 apiVersion: platform.confluent.io/v1beta1
 kind: KafkaRestClass
 metadata:
-  name: rest-v3
+  name: default
   namespace: cp-edge
 spec:
   kafkaClusterRef:

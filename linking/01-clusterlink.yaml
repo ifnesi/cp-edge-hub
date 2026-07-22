@@ -36,12 +36,12 @@ spec:
   # Destination cluster — the Hub Kafka, addressed via its KafkaRestClass
   destinationKafkaCluster:
     kafkaRestClassRef:
-      name: rest-v3
+      name: default
       namespace: cp-hub
 
   # Source cluster — the Edge Kafka (external, reached via NLB FQDNs)
   sourceKafkaCluster:
-    # Edge Kafka cluster ID (kubectl --context=edge get kafkarestclass rest-v3
+    # Edge Kafka cluster ID (kubectl --context=edge get kafkarestclass default
     # -n cp-edge -o jsonpath='{.status.kafkaClusterID}'). Required because the
     # source is external (no in-cluster KafkaRestClass on Hub for it).
     clusterID: kMu98poWTRKgSVmnJY6q0A

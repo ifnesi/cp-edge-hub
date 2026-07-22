@@ -6,6 +6,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_dns_logs-aggregate
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -23,6 +26,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-event-system
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -40,6 +46,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-event-user
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -57,6 +66,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-event-vpn
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -74,6 +86,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-traffic-forward
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -91,6 +106,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-traffic-local
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -108,6 +126,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-utm-dns
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -125,6 +146,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-utm-ips
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -142,6 +166,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-utm-virus
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -159,6 +186,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_fortigate_logs-utm-webfilter
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -176,6 +206,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-auth-auth
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -193,6 +226,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-globalprotect-globalprotect
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -210,6 +246,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-system-general
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -227,6 +266,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-threat-spyware
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -244,6 +286,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-threat-url
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -261,6 +306,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-threat-virus
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -278,6 +326,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-threat-vulnerability
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -295,6 +346,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-traffic-deny
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -312,6 +366,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-traffic-end
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -329,6 +386,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_paloalto_logs-traffic-start
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge
@@ -346,6 +406,9 @@ metadata:
   namespace: cp-edge
 spec:
   name: siem_poc_windows_eventlog_logs
+  kafkaRestClassRef:
+    name: default
+    namespace: cp-edge
   kafkaClusterRef:
     name: kafka
     namespace: cp-edge

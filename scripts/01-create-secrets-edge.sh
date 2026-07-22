@@ -37,6 +37,14 @@ $KCL create secret generic tls-kafka \
   --from-file=privkey.pem="${CERTS_DIR}/kafka-server-key.pem" \
   --dry-run=client -o yaml | $KCL apply -f -
 
+log "  tls-controlcenter"
+$KCL create secret generic tls-controlcenter \
+  --namespace="${NS}" \
+  --from-file=fullchain.pem="${CERTS_DIR}/kafka-server.pem" \
+  --from-file=cacerts.pem="${CERTS_DIR}/cacerts.pem" \
+  --from-file=privkey.pem="${CERTS_DIR}/kafka-server-key.pem" \
+  --dry-run=client -o yaml | $KCL apply -f -
+
 # CA key-pair secret (used by CfK to issue component certificates)
 log "  ca-pair-sslcerts"
 $KCL create secret generic ca-pair-sslcerts \
