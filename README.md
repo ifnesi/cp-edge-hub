@@ -489,8 +489,11 @@ To verify if the license is valid, run the command below. If the license is vali
 payload=$(cat license.txt | cut -d'.' -f2 | base64 -d)
 echo "\n$payload" | jq '.iat |= (. | strflocaltime("%Y-%m-%d %H:%M:%S GMT")) | .exp |= (. | strflocaltime("%Y-%m-%d %H:%M:%S GMT"))'
 echo ""
-echo "$payload" | jq -e ".exp > $(date +%s)" >/dev/null
-echo -e "Confluent Platform License Status: \e[32mVALID\e[0m" || echo -e "License Status: \e[31mINVALID\e[0m\n"
+if echo "$payload" | jq -e ".exp > $(date +%s)" >/dev/null 2>&1; then
+  echo -e "Confluent Platform License Status: \e[32mVALID\e[0m"
+else
+  echo -e "Confluent Platform License Status: \e[31mINVALID\e[0m"
+fi
 ```
 
 **2. Run the license installation script:**
