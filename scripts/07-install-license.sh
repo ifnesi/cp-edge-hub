@@ -52,7 +52,7 @@ if [ -z "$LICENSE_CONTENT" ]; then
 fi
 
 # Validate JWT format (basic check: should have 3 parts separated by dots)
-if [[ ! "$LICENSE_CONTENT" =~ ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]; then
+if [[ ! "$LICENSE_CONTENT" =~ ^[A-Za-z0-9_/+=-]+\.[A-Za-z0-9_/+=-]+\.[A-Za-z0-9_/+=-]+$ ]]; then
   echo "❌ license.txt does not appear to be a valid JWT token"
   echo "   Expected format: <header>.<payload>.<signature>"
   exit 1
