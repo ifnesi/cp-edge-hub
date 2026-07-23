@@ -205,11 +205,18 @@ and forwards events to Splunk. Run these commands from the **repo root on your M
 
 The connector needs to verify Hub's Schema Registry TLS certificate.
 
+> **Note:** The cert is written to the pod's ephemeral filesystem — it is lost whenever
+> the Connect pod restarts. Re-run this step any time the pod is restarted before
+> redeploying the connector.
+
 ```bash
 kubectl --context=hub exec -n cp-hub connect-0 -- mkdir -p /home/appuser/certs
 base64 < certs/cacerts.pem | \
   kubectl --context=hub exec -i -n cp-hub connect-0 -- \
     sh -c 'base64 -d > /home/appuser/certs/cacerts.pem'
+
+# Verify
+kubectl --context=hub exec -n cp-hub connect-0 -- ls -la /home/appuser/certs/
 ```
 
 > `kubectl cp` requires `tar` in the container image; the Connect image does not include it,
@@ -218,8 +225,15 @@ base64 < certs/cacerts.pem | \
 ### Step 2 — Deploy the connector
 
 Run from your **Mac** (requires `jq` and `kubectl` with the hub context).
-Substitute all `certs/cacerts.pem` references with the in-pod absolute path, then POST
-the config to the Connect REST API from inside the pod:
+
+If redeploying, delete any existing connector first:
+
+```bash
+kubectl --context=hub exec -n cp-hub connect-0 -- \
+  curl -s -X DELETE http://localhost:8083/connectors/siem-poc-splunk-sink
+```
+
+Then POST the config to the Connect REST API:
 
 ```bash
 HEC_TOKEN="<your-hec-token>"
