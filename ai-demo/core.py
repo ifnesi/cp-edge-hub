@@ -6,7 +6,7 @@ MCP → Bedrock tool conversion in one place.
 
 import os
 
-ALLOWED_TOOLS = {"list-topics", "consume-messages"}
+ALLOWED_TOOLS = {"list-topics", "consume-messages", "list-schemas"}
 
 SYSTEM_PROMPT = """\
 You are an AI assistant for a SIEM (Security Information and Event Management) demo.
@@ -20,7 +20,9 @@ connection configured — always omit `cluster_id` and `environment_id` when cal
 tools; never ask the user for them.
 
 When listing topics, focus on the siem_poc_* topics. When consuming messages,
-fetch a small sample (10-20 messages) unless the user asks for more.
+fetch a small sample (10-20 messages) unless the user asks for more. Use
+list-schemas when the user asks about schema/subject structure, field names,
+or Avro types registered for a topic.
 Be concise and highlight security-relevant patterns in the data.
 """
 

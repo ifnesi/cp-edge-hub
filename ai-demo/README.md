@@ -19,9 +19,10 @@ You ──▶ agent.py / webui ──▶ AWS Bedrock (Claude Haiku 4.5)
                      Hub Kafka + Schema Registry
 ```
 
-The agent is **read-only** and exposes two tools to the model:
+The agent is **read-only** and exposes three tools to the model:
 - `list-topics` — list topics on the Hub cluster
 - `consume-messages` — fetch and Avro-decode messages from a topic via Schema Registry
+- `list-schemas` — list registered schemas in the Hub Schema Registry
 
 The web UI binds to `127.0.0.1` on the EC2 only — it is never exposed
 publicly. Reach it from your Mac via an SSM port-forward tunnel (see
@@ -144,7 +145,7 @@ source ~/.ai-demo.env
 
  Model   : eu.anthropic.claude-haiku-4-5-20251001-v1:0
  Cluster : hub.kafka.demo:9092
- Tools   : consume-messages, list-topics
+ Tools   : consume-messages, list-schemas, list-topics
 
 You: what topics are available?
 
