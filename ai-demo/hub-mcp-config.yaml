@@ -1,0 +1,27 @@
+server:
+  transports: [stdio]
+  log_level: error
+
+connections:
+  hub:
+    type: direct
+    description: "Hub Kafka cluster (read-only)"
+    read_only: true
+
+    kafka:
+      bootstrap_servers: "${HUB_BOOTSTRAP}"
+      auth:
+        type: api_key
+        key: "${KAFKA_USER}"
+        secret: "${KAFKA_PASSWORD}"
+      extra_properties:
+        security.protocol: "SASL_SSL"
+        sasl.mechanisms: "PLAIN"
+        ssl.ca.location: "${CA_CERT_PATH}"
+
+    schema_registry:
+      endpoint: "${HUB_SR_URL}"
+      auth:
+        type: api_key
+        key: "${SR_USER}"
+        secret: "${SR_PASSWORD}"

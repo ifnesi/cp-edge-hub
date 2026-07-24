@@ -15,7 +15,8 @@ set -euo pipefail
 log()  { echo "[$(date +%H:%M:%S)] $*"; }
 die()  { echo "ERROR: $*" >&2; exit 1; }
 
-REMOTE_HOME="/home/ssm-user/siem-emulator"
+HOME_DIR="/home/ssm-user"
+REMOTE_HOME="${HOME_DIR}/siem-emulator"
 REMOTE_KAFKA_DIR="${REMOTE_HOME}/kafka"
 REMOTE_CERTS_DIR="${REMOTE_HOME}/certs"
 
@@ -116,7 +117,6 @@ do
   send_file "${src}" "${REMOTE_HOME}"
 done
 ssm_run "chmod +x ${REMOTE_HOME}/*.sh"
-
 
 # Patch all relative cert paths to absolute so configs work from any working directory.
 log "Patching cert paths to absolute in configs..."
