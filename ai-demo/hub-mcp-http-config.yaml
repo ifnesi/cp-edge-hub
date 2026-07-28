@@ -1,0 +1,32 @@
+server:
+  transports: [http]
+  log_level: error
+  http:
+    port: ${MCP_HTTP_PORT}
+  auth:
+    api_key: "${MCP_API_KEY}"
+    allowed_hosts: [localhost, 127.0.0.1]
+
+connections:
+  hub:
+    type: direct
+    description: "Hub Kafka cluster (read-only)"
+    read_only: true
+
+    kafka:
+      bootstrap_servers: "${HUB_BOOTSTRAP}"
+      auth:
+        type: api_key
+        key: "${KAFKA_USER}"
+        secret: "${KAFKA_PASSWORD}"
+      extra_properties:
+        security.protocol: "SASL_SSL"
+        sasl.mechanisms: "PLAIN"
+        ssl.ca.location: "${CA_CERT_PATH}"
+
+    schema_registry:
+      endpoint: "${HUB_SR_URL}"
+      auth:
+        type: api_key
+        key: "${SR_USER}"
+        secret: "${SR_PASSWORD}"

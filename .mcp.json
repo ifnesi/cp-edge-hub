@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "hub-confluent": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "cflt-mcp-api-key": "${MCP_API_KEY}"
+      }
+    }
+  }
+}

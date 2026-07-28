@@ -77,8 +77,10 @@ for src in \
   agent.py \
   requirements.txt \
   hub-mcp-config.yaml \
+  hub-mcp-http-config.yaml \
   setup-ai-demo.sh \
-  run-agent.sh
+  run-agent.sh \
+  run-mcp-http.sh
 do
   send_file "${AI_DEMO_DIR}/${src}" "${REMOTE_AI_DIR}"
 done
@@ -98,7 +100,7 @@ CA_CERT_SRC="${AI_DEMO_DIR}/../certs/cacerts.pem"
 [[ -f "${CA_CERT_SRC}" ]] || die "${CA_CERT_SRC} not found — run certs/generate-certs.sh first"
 send_file "${CA_CERT_SRC}" "${REMOTE_AI_DIR}/certs"
 
-ssm_run "chmod +x ${REMOTE_AI_DIR}/setup-ai-demo.sh ${REMOTE_AI_DIR}/run-agent.sh ${REMOTE_AI_DIR}/webui/run-webui.sh"
+ssm_run "chmod +x ${REMOTE_AI_DIR}/setup-ai-demo.sh ${REMOTE_AI_DIR}/run-agent.sh ${REMOTE_AI_DIR}/run-mcp-http.sh ${REMOTE_AI_DIR}/webui/run-webui.sh"
 
 log ""
 log "SUCCESS"

@@ -9,7 +9,7 @@ Schema Linking replicating data from Edge to Hub.
 | Component | Version | Image |
 |-----------|---------|-------|
 | Confluent Platform | **8.2.1** | `cp-server` / `cp-schema-registry` / `cp-server-connect:8.2.1` |
-| Confluent for Kubernetes (operator) | **3.2.0** | `confluent-init-container:3.2.0` |
+| Confluent for Kubernetes (operator) | **3.2.2** | `confluent-init-container:3.2.2` |
 | Control Center (next-gen) | **2.5.0** | `cp-enterprise-control-center-next-gen:2.5.0` |
 | C3 bundled Prometheus / Alertmanager | **2.5.0** | `cp-enterprise-prometheus` / `cp-enterprise-alertmanager:2.5.0` |
 | Splunk connector | **2.2.6** | `splunk/kafka-connect-splunk` installed into Connect from Confluent Hub |

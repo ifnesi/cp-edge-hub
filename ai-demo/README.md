@@ -1,33 +1,35 @@
 # SIEM AI Agent
 
-An AI chat agent that lets you query the Hub Kafka cluster in natural
-language, available as a **terminal CLI** and a **web UI**. Both use AWS
-Bedrock (Claude Haiku 4.5) as the LLM and the
-[Confluent MCP Server](https://github.com/confluentinc/mcp-confluent) as the
-Kafka interface (cloned directly on the EC2 during setup).
+Lets you query the Hub Kafka cluster in natural language, via the
+[Confluent MCP Server](https://github.com/confluentinc/mcp-confluent)
+(cloned directly on the EC2 during setup). Three ways to use it:
+
+- **Option A — Claude Code** connected directly to the MCP server over HTTP
+  (Claude itself is the agent — no Bedrock, no custom chat app)
+- **Option B — Web UI** — a small Flask + React chat app using AWS Bedrock (Claude Haiku 4.5) as the LLM
+- **Option C — Terminal CLI** — same Bedrock-backed agent as Option B, as a chat REPL
 
 This demo is **self-contained** — its own Python venv, own CA cert copy, own
 setup script — independent of the main siem-emulator demo under `demo/`.
 
 ```
-You ──▶ agent.py / webui ──▶ AWS Bedrock (Claude Haiku 4.5)
-                          │
-                          ▼ tool calls (stdio)
-                     mcp-confluent (~/mcp-confluent on EC2)
-                          │
-                          ▼ SASL_SSL / HTTPS
-                     Hub Kafka + Schema Registry
+Option A:  Claude Code ──▶ mcp-confluent (HTTP, API-key auth) ──▶ Hub Kafka + SR
+Option B/C: agent.py / webui ──▶ AWS Bedrock (Claude Haiku 4.5)
+                              │
+                              ▼ tool calls (stdio)
+                         mcp-confluent (~/mcp-confluent on EC2)
+                              │
+                              ▼ SASL_SSL / HTTPS
+                         Hub Kafka + Schema Registry
 ```
 
-The agent is **read-only** and exposes three tools to the model:
+All three are **read-only** against Hub and expose the same tools:
 - `list-topics` — list topics on the Hub cluster
 - `consume-messages` — fetch and Avro-decode messages from a topic via Schema Registry
-- `list-schemas` — list registered schemas in the Hub Schema Registry
+- `list-schemas` — list registered schemas (full Avro definitions) in the Hub Schema Registry
 
-The web UI binds to `127.0.0.1` on the EC2 only — it is never exposed
-publicly. Reach it from your Mac via an SSM port-forward tunnel (see
-[Web UI](#web-ui) below). Login is username-only (no password) — it just
-labels the session, matching the demo's trust model.
+None of these expose anything publicly — everything is reached from your Mac
+via an SSM port-forward tunnel into the EC2's private subnet.
 
 ---
 
@@ -83,7 +85,118 @@ This script:
 
 ---
 
-## Option A — Web UI (Recommended)
+## Option A — Claude Code (direct MCP connection)
+
+Run the Confluent MCP Server over HTTP on the EC2 and connect Claude Code to
+it directly through an SSM tunnel. Claude becomes the agent — no Bedrock, no
+custom chat app. Anyone running Claude Code can follow these steps.
+
+> **Enterprise policy note:** some Claude Code deployments block the ad-hoc
+> `claude mcp add` command entirely (`Cannot add MCP server "...": not allowed
+> by enterprise policy`) — it writes to your global user config, which many
+> orgs disallow for auditability. The project-level `.mcp.json` approach below
+> is the sanctioned alternative: the server is declared in a file checked into
+> this repo, and Claude Code prompts you to approve it (or your admin
+> allowlists it by name via `enabledMcpjsonServers` in settings) rather than
+> letting any command silently register arbitrary servers. If your org blocks
+> project MCP servers too, fall back to [Option B](#option-b--web-ui) or
+> [Option C](#option-c--terminal-cli) instead.
+
+### 1. Generate an API key on the EC2 (one-time)
+
+Connect to the EC2 (see [Setup](#setup) above if you haven't already run
+Steps 1–2), then:
+
+```bash
+export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+node ~/mcp-confluent/dist/index.js --generate-key
+```
+
+This prints a key like `MCP_API_KEY=3959339c...`. **Treat it as a secret** —
+it grants read access to the Hub cluster's topics and schemas. Don't commit
+it or paste it anywhere public.
+
+### 2. Start the HTTP MCP server on the EC2
+
+```bash
+MCP_API_KEY="<paste-your-key>" nohup bash ~/ai-demo/run-mcp-http.sh > ~/mcp-http.log 2>&1 &
+```
+
+This uses `hub-mcp-http-config.yaml` (HTTP transport, API-key auth, bound to
+`127.0.0.1:8080` on the EC2) — separate from `hub-mcp-config.yaml` (stdio),
+which Options B/C use. Both can run at the same time without conflict.
+
+Verify it started cleanly:
+
+```bash
+tail -20 ~/mcp-http.log
+```
+
+### 3. Tunnel to it from your Mac
+
+Open a **separate terminal** on your Mac:
+
+```bash
+INSTANCE_ID=$(cd terraform && terraform output -raw producer_host_instance_id)
+REGION=$(cd terraform && terraform output -raw aws_region)
+aws ssm start-session \
+  --target "$INSTANCE_ID" \
+  --region "$REGION" \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["8080"],"localPortNumber":["8080"]}'
+```
+
+Leave this running.
+
+### 4. Register the MCP server with Claude Code
+
+This repo already includes a project-level `.mcp.json` at the repo root
+declaring the `hub-confluent` server:
+
+```json
+{
+  "mcpServers": {
+    "hub-confluent": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "cflt-mcp-api-key": "${MCP_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+The API key is read from your shell environment (never hardcoded/committed).
+Export it before launching Claude Code, from the repo root:
+
+```bash
+export MCP_API_KEY="<paste-your-key>"
+claude
+```
+
+On first use, Claude Code will prompt you to approve the `hub-confluent`
+project MCP server (since it's declared in `.mcp.json`, not added via `claude
+mcp add`). Approve it, then ask things like *"what topics are on the Hub
+cluster?"* or *"show me the schema for the DNS logs topic"* and Claude will
+call the tools directly.
+
+> To skip the approval prompt on every machine, add `"hub-confluent"` to
+> `enabledMcpjsonServers` in your `~/.claude/settings.json` (or ask your org
+> admin to allowlist it there).
+
+### Stopping the HTTP MCP server
+
+When you're done, stop it on the EC2 (and close the SSM tunnel on your Mac
+with Ctrl-C):
+
+```bash
+pkill -f run-mcp-http.sh
+```
+
+---
+
+## Option B — Web UI
 
 The web UI is a Flask backend (reusing the same Bedrock + MCP logic as the
 CLI) with a single-file React frontend loaded from a CDN — no npm install or
@@ -125,7 +238,7 @@ password) and start chatting.
 
 ---
 
-## Option B — Terminal CLI
+## Option C — Terminal CLI
 
 ```bash
 bash ~/ai-demo/run-agent.sh
