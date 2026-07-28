@@ -185,6 +185,13 @@ def chat():
                 "content": [{"toolResult": tr} for tr in tool_results],
             })
 
+            # The next loop iteration starts a new assistant turn. If this turn
+            # had its own text (e.g. "I'll check that...") before the tool call,
+            # separate it from the next turn's text — otherwise the frontend
+            # concatenates them into one run-on paragraph with no boundary.
+            if current_text:
+                yield sse({"type": "text_delta", "text": "\n\n"})
+
         yield sse({"type": "done"})
 
     return Response(generate(), mimetype="text/event-stream")

@@ -19,8 +19,8 @@
     --text-dim: #8b98a9;
     --accent: #5eb4f5;
     --accent-2: #7c6cf0;
-    --user-bubble: #1f2b3d;
-    --agent-bubble: #151b26;
+    --user-bubble: #26405c;
+    --agent-bubble: #1c2433;
     --error: #f16d6d;
   }
   * { box-sizing: border-box; }
@@ -100,14 +100,17 @@
   .topbar-title { font-weight: 700; font-size: 15px; }
   .topbar-meta { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
   .logout-btn {
-    background: transparent;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(241,109,109,0.12);
+    color: var(--error);
+    border: 1px solid rgba(241,109,109,0.35);
     border-radius: 8px;
     padding: 7px 12px;
     font-size: 12px;
   }
-  .logout-btn:hover { color: var(--text); border-color: var(--accent); }
+  .logout-btn:hover { background: rgba(241,109,109,0.22); border-color: var(--error); }
 
   .chat-area {
     flex: 1;
@@ -117,23 +120,40 @@
     flex-direction: column;
     gap: 14px;
   }
-  .msg-row { display: flex; }
+  .msg-row { display: flex; gap: 10px; align-items: flex-start; }
   .msg-row.user { justify-content: flex-end; }
+  .avatar {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    margin-top: 2px;
+  }
+  .avatar.user { background: linear-gradient(135deg, var(--accent), #3a7fc4); order: 2; }
+  .avatar.agent { background: linear-gradient(135deg, var(--accent-2), #4f3fb8); }
   .bubble {
     max-width: 72%;
     padding: 12px 16px;
     border-radius: 14px;
     font-size: 14.5px;
-    line-height: 1.5;
+    line-height: 1.05;
     white-space: pre-wrap;
   }
-  .bubble.user { background: var(--user-bubble); border: 1px solid var(--border); }
+  .bubble.user { background: var(--user-bubble); border: 1px solid #345277; order: 1; }
   .bubble.agent { background: var(--agent-bubble); border: 1px solid var(--border); }
   .markdown-body :first-child { margin-top: 0; }
   .markdown-body :last-child { margin-bottom: 0; }
-  .markdown-body p { margin: 0 0 10px 0; }
-  .markdown-body ul, .markdown-body ol { margin: 0 0 10px 0; padding-left: 22px; }
-  .markdown-body li { margin: 2px 0; }
+  .markdown-body p { margin: 0; }
+  .markdown-body ul, .markdown-body ol { margin: 0 0 6px 0; padding-left: 22px; }
+  .markdown-body p + ul, .markdown-body p + ol { margin-top: -2px; }
+  .markdown-body li { margin: 0; }
+  .markdown-body li > p { margin: 0; }
+  .markdown-body li + li { margin-top: 2px; }
+  .markdown-body li > ul, .markdown-body li > ol { margin: 0; }
   .markdown-body h1, .markdown-body h2, .markdown-body h3 {
     margin: 14px 0 8px 0; font-size: 1.05em; font-weight: 700; color: var(--text);
   }
@@ -261,9 +281,36 @@ function ToolLine({ event }) {
   return null;
 }
 
+// Insert a blank line wherever a block-level element (heading, bold
+// pseudo-heading, or paragraph) immediately follows a list item with no
+// blank line — otherwise CommonMark parses it as a lazy continuation of
+// that list item instead of a new block, and no amount of CSS can add
+// spacing to text that's still inside the same <li>.
+function normalizeMarkdown(text) {
+  const lines = text.split("\n");
+  const isListItem = (l) => /^\s*([-*+]|\d+[.)])\s+/.test(l);
+  const isBlank = (l) => l.trim() === "";
+  const isHeading = (l) => /^#{1,6}\s+/.test(l);
+  const isBoldOnlyLine = (l) => /^\*\*[^*]+\*\*:?\s*$/.test(l.trim());
+  const isBlockStart = (l) => isHeading(l) || isBoldOnlyLine(l);
+
+  const out = [];
+  let prevNonBlank = "";
+
+  for (const line of lines) {
+    const lastOut = out[out.length - 1];
+    if (isBlockStart(line) && isListItem(prevNonBlank) && lastOut !== undefined && !isBlank(lastOut)) {
+      out.push("");
+    }
+    out.push(line);
+    if (!isBlank(line)) prevNonBlank = line;
+  }
+  return out.join("\n");
+}
+
 function renderMarkdown(text) {
   try {
-    return { __html: DOMPurify.sanitize(marked.parse(text)) };
+    return { __html: DOMPurify.sanitize(marked.parse(normalizeMarkdown(text))) };
   } catch (err) {
     console.error("Markdown render failed:", err);
     return { __html: DOMPurify.sanitize(text.replace(/\n/g, "<br/>")) };
@@ -352,12 +399,13 @@ function ChatScreen({ me, onLogout }) {
           <div className="topbar-title">SIEM AI Agent — {me.username}</div>
           <div className="topbar-meta">{me.model} · {me.cluster}</div>
         </div>
-        <button className="logout-btn" onClick={onLogout}>Log out</button>
+        <button className="logout-btn" onClick={onLogout}><span>🚪</span> Log out</button>
       </div>
 
       <div className="chat-area" ref={chatRef}>
         {messages.map((m, i) => (
           <div key={i} className={`msg-row ${m.role}`}>
+            <div className={`avatar ${m.role}`}>{m.role === "user" ? "🧑" : "🤖"}</div>
             <div className={`bubble ${m.role}`}>
               {m.role === "agent" && m.events && m.events.map((ev, j) => <ToolLine key={j} event={ev} />)}
               {m.text ? (
