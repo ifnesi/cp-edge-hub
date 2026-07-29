@@ -1256,7 +1256,7 @@ bash linking/03-clusterlink-ctl.sh status
 # Simulate network failure — pause the entire link
 bash linking/03-clusterlink-ctl.sh pause
 
-# Watch Edge offsets advancing every 2s (Ctrl-C to stop)
+# Watch Edge offsets advancing every 1s (Ctrl-C to stop)
 watch -n 1 "kafka-get-offsets \
   --bootstrap-server edge.kafka.demo:9092 \
   --command-config scripts/edge-sslcli.properties \
